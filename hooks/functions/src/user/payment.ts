@@ -2,6 +2,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 import cors from "cors";
 import * as crypto from "crypto";
+// FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
+import { Buffer } from "buffer";
 import { db, cashfree, CASHFREE_WEBHOOK_SECRET } from "../config";
 import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./types";
 

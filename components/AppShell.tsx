@@ -161,27 +161,6 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         };
     }, [user]);
 
-    useEffect(() => {
-        const requestMicrophonePermission = async () => {
-            if (user && !sessionStorage.getItem('micPermissionRequested')) {
-                sessionStorage.setItem('micPermissionRequested', 'true');
-                try {
-                    if (navigator.permissions) {
-                        const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-                        if (permissionStatus.state === 'prompt') {
-                            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                            stream.getTracks().forEach(track => track.stop());
-                        }
-                    }
-                } catch (error) {
-                    console.warn('Could not proactively request microphone permission:', error);
-                }
-            }
-        };
-        const timer = setTimeout(requestMicrophonePermission, 2500);
-        return () => clearTimeout(timer);
-    }, [user]);
-
     // --- Handlers ---
     
     const showNotification = useCallback((title: string, message: string) => {
@@ -236,39 +215,75 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     
     const handleLogout = useCallback(() => auth.signOut(), []);
     
-    const handleStartSession = useCallback((type: 'call' | 'chat', listener: Listener) => {
-        if (type === 'chat' && user && (user.freeMessagesRemaining || 0) > 0) {
-            setActiveChatSession({ type: 'chat', listener, plan: { duration: 'Free Trial', price: 0 }, sessionDurationSeconds: 3 * 3600, associatedPlanId: `free_trial_${user.uid}`, isTokenSession: false, isFreeTrial: true });
-            return;
-        }
-        
-        const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
-        const dtPlan = activePlans.find(p => p.type === type && ((type === 'call' && (p.minutes || 0) > 0) || (type === 'chat' && (p.messages || 0) > 0)));
-
-        if (dtPlan) {
-            const session = { listener, plan: { duration: dtPlan.name || 'Plan', price: dtPlan.price || 0 }, associatedPlanId: dtPlan.id, isTokenSession: false };
-            if (type === 'call') {
+    const handleStartSession = useCallback(async (type: 'call' | 'chat', listener: Listener) => {
+        // --- CHAT SESSION LOGIC ---
+        if (type === 'chat') {
+            if (user && (user.freeMessagesRemaining || 0) > 0) {
+                setActiveChatSession({ type: 'chat', listener, plan: { duration: 'Free Trial', price: 0 }, sessionDurationSeconds: 3 * 3600, associatedPlanId: `free_trial_${user.uid}`, isTokenSession: false, isFreeTrial: true });
+                return;
+            }
+            
+            const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
+            const dtPlan = activePlans.find(p => p.type === 'chat' && (p.messages || 0) > 0);
+    
+            if (dtPlan) {
+                const session = { listener, plan: { duration: dtPlan.name || 'Plan', price: dtPlan.price || 0 }, associatedPlanId: dtPlan.id, isTokenSession: false };
+                setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
+            } else {
+                // Token check for chat
+                const canUseTokens = (wallet.tokens || 0) >= 0.5;
+                if (canUseTokens) {
+                    const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
+                    setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
+                } else {
+                    setShowRechargeModal(true);
+                }
+            }
+        // --- CALL SESSION LOGIC ---
+        } else if (type === 'call') {
+            try {
+                // Check microphone permission status first.
+                if (navigator.permissions) {
+                    const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+                    if (permissionStatus.state === 'denied') {
+                        showNotification('Microphone Blocked', 'To make calls, please enable microphone access in your browser settings for this site.');
+                        return;
+                    }
+                }
+                
+                // Request microphone access. This will prompt if not yet granted.
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Permission granted, stop the track immediately.
+                stream.getTracks().forEach(track => track.stop());
+    
+            } catch (error) {
+                console.error('Microphone permission was not granted:', error);
+                showNotification('Microphone Required', 'Microphone access is required to make calls. Please allow access and try again.');
+                return;
+            }
+    
+            // --- Call plan logic (runs only if permission is granted) ---
+            const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
+            const dtPlan = activePlans.find(p => p.type === 'call' && (p.minutes || 0) > 0);
+    
+            if (dtPlan) {
+                const session = { listener, plan: { duration: dtPlan.name || 'Plan', price: dtPlan.price || 0 }, associatedPlanId: dtPlan.id, isTokenSession: false };
                 const durationSeconds = (dtPlan.minutes || 0) * 60;
                 setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
-            } else { // type === 'chat'
-                setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
-            }
-        } else {
-            const canUseTokens = (type === 'call' && (wallet.tokens || 0) >= 2) || (type === 'chat' && (wallet.tokens || 0) >= 0.5);
-            if (canUseTokens) {
-                const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
-                if (type === 'call') {
+            } else {
+                // Token check for call
+                const canUseTokens = (wallet.tokens || 0) >= 2;
+                if (canUseTokens) {
+                    const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
                     const maxMinutes = Math.floor((wallet.tokens || 0) / 2); // 2 MT per minute
                     const durationSeconds = maxMinutes * 60;
                     setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
-                } else { // type === 'chat'
-                    setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
+                } else {
+                    setShowRechargeModal(true);
                 }
-            } else {
-                setShowRechargeModal(true);
             }
         }
-    }, [wallet, user]);
+    }, [wallet, user, showNotification]);
     
     const handleCallSessionEnd = useCallback(async (success: boolean, consumedSeconds: number) => {
         if (user && activeCallSession) {
