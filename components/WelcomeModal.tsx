@@ -32,9 +32,12 @@ const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
 const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms, onShowPrivacyPolicy }) => {
   const [name, setName] = useState(user.name || '');
   const [city, setCity] = useState('');
+  const [mobile, setMobile] = useState('');
   const [isChecked, setIsChecked] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  
+  const showMobileInput = !user.mobile;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +49,10 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms,
       setError('कृपया अपना शहर दर्ज करें।');
       return;
     }
+    if (showMobileInput && !/^\d{10}$/.test(mobile.trim())) {
+      setError('कृपया एक मान्य 10-अंकीय मोबाइल नंबर दर्ज करें।');
+      return;
+    }
     if (!isChecked) {
       setError('आपको नियम और शर्तों से सहमत होना होगा।');
       return;
@@ -55,11 +62,17 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms,
     setError('');
 
     try {
-      await db.collection('users').doc(user.uid).update({
+      const updateData: { name: string; city: string; hasSeenWelcome: boolean; mobile?: string } = {
         name: name.trim(),
         city: city.trim(),
         hasSeenWelcome: true,
-      });
+      };
+
+      if (showMobileInput) {
+        updateData.mobile = `+91${mobile.trim()}`;
+      }
+      
+      await db.collection('users').doc(user.uid).update(updateData);
       onClose();
     } catch (err) {
       console.error("Error updating user profile:", err);
@@ -69,7 +82,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms,
     }
   };
 
-  const isButtonDisabled = !name.trim() || !city.trim() || !isChecked || loading;
+  const isButtonDisabled = !name.trim() || !city.trim() || (showMobileInput && mobile.trim().length !== 10) || !isChecked || loading;
 
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4 animate-fade-in">
@@ -103,6 +116,23 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms,
                 className="w-full p-3 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 transition"
                 required
             />
+            {showMobileInput && (
+              <div className="relative">
+                  <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
+                      +91
+                  </div>
+                  <input
+                      type="tel"
+                      id="welcome-mobile"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value.replace(/[^0-9]/g, ''))}
+                      maxLength={10}
+                      placeholder="मोबाइल नंबर *"
+                      className="w-full p-3 pl-12 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-cyan-500 transition"
+                      required
+                  />
+              </div>
+            )}
             
             <ul className="space-y-4 text-left">
                 <li className="flex items-center gap-4">
