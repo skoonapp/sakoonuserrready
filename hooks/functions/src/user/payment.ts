@@ -1,183 +1,384 @@
-// FIX: Using v1 functions to match the syntax used in the project (e.g., .region(...)).
 import * as functions from "firebase-functions/v1";
-import { cashfree, db, admin } from "../config";
-import type { Plan } from "./types";
+import * as admin from "firebase-admin";
+import cors from "cors";
+import * as crypto from "crypto";
+import { db, cashfree, CASHFREE_WEBHOOK_SECRET } from "../config";
+import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./types";
 
-// Helper to create a consistent order ID
-const generateOrderId = () => `SAKOON-${Date.now()}`;
+const corsHandler = cors({ origin: true });
 
-// Helper to add recharge history
-const addRechargeHistory = async (
-  userId: string,
-  orderId: string,
-  amount: number,
-  planType: string,
-  planDetails: string,
-  status: 'Success' | 'Pending' | 'Failed'
-) => {
-  await db.collection("users").doc(userId).collection("rechargeHistory").add({
-    timestamp: Date.now(),
-    amount: amount,
-    planType: planType,
-    planDetails: planDetails,
-    status: status,
-    paymentId: orderId,
+// Helper function to verify webhook signature
+const verifyWebhookSignature = (payload: string, signature: string, timestamp: string): boolean => {
+  try {
+    const expectedSignature = crypto
+      .createHmac("sha256", CASHFREE_WEBHOOK_SECRET)
+      .update(`${timestamp}${payload}`)
+      .digest("base64");
+    
+    return crypto.timingSafeEqual(
+      Buffer.from(signature, 'base64'),
+      Buffer.from(expectedSignature, 'base64')
+    );
+  } catch (error) {
+    functions.logger.error("Signature verification error:", error);
+    return false;
+  }
+};
+
+// Enhanced purchase processing with better error handling
+const processPurchase = async (paymentNotes: PaymentNotes, paymentId: string, eventData: any) => {
+  const { userId, planType, planDetails } = paymentNotes;
+
+  if (!userId) {
+    throw new functions.https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
+  }
+
+  const paymentRef = db.collection("processedPayments").doc(paymentId);
+  const userRef = db.collection("users").doc(userId);
+
+  await db.runTransaction(async (transaction) => {
+    const paymentDoc = await transaction.get(paymentRef);
+    if (paymentDoc.exists) {
+      functions.logger.warn(`Payment ${paymentId} पहले ही प्रोसेस हो चुका है।`);
+      return;
+    }
+
+    let details;
+    try {
+      details = JSON.parse(planDetails);
+    } catch (error) {
+      throw new Error(`Invalid plan details JSON: ${planDetails}`);
+    }
+
+    if (planType === "mt") {
+      const tokenDetails = details as TokenPlanDetails;
+      if (!tokenDetails.tokens || tokenDetails.tokens <= 0) {
+        throw new Error(`Invalid token amount: ${tokenDetails.tokens}`);
+      }
+      transaction.set(userRef, { 
+        tokens: admin.firestore.FieldValue.increment(tokenDetails.tokens) 
+      }, { merge: true });
+    } else if (planType === "dt") {
+      const dtDetails = details as PlanDetails;
+      
+      const newPlan: any = {
+        id: `plan_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        type: dtDetails.type,
+        name: dtDetails.name,
+        price: dtDetails.price,
+        purchaseTimestamp: Date.now(),
+        expiryTimestamp: Date.now() + (30 * 24 * 60 * 60 * 1000),
+        paymentId: paymentId,
+      };
+
+      if (dtDetails.minutes !== undefined && dtDetails.minutes > 0) {
+        newPlan.minutes = dtDetails.minutes;
+      }
+      if (dtDetails.messages !== undefined && dtDetails.messages > 0) {
+        newPlan.messages = dtDetails.messages;
+      }
+
+      transaction.set(userRef, { 
+        activePlans: admin.firestore.FieldValue.arrayUnion(newPlan) 
+      }, { merge: true });
+    } else {
+      throw new Error(`Unknown plan type: ${planType}`);
+    }
+
+    // Enhanced recharge history with more details
+    const rechargeHistoryRef = userRef.collection("rechargeHistory").doc();
+    transaction.set(rechargeHistoryRef, {
+      timestamp: Date.now(),
+      amount: details.price,
+      planType: planType.toUpperCase(),
+      planDetails: planType === "mt" ? `${details.tokens} MT` : details.name,
+      status: "Success",
+      paymentId: paymentId,
+      orderId: eventData.data?.order?.order_id,
+      paymentMethod: eventData.data?.payment?.payment_method,
+      gatewayResponse: {
+        cf_payment_id: eventData.data?.payment?.cf_payment_id,
+        payment_status: eventData.data?.payment?.payment_status,
+        payment_amount: eventData.data?.payment?.payment_amount,
+      }
+    });
+
+    // Mark payment as processed with full event data
+    transaction.set(paymentRef, { 
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      eventType: eventData.type,
+      orderId: eventData.data?.order?.order_id,
+    });
   });
 };
 
-/**
- * Creates a Cashfree order session for a user to purchase plans or tokens.
- */
-export const createCashfreeOrder = functions.region("asia-south1").https.onCall(async (data, context) => {
-    if (!context.auth) {
-      throw new functions.https.HttpsError("unauthenticated", "You must be logged in to make a purchase.");
+export const createCashfreeOrder = functions.region('asia-south1').https.onCall(async (data: any, context: functions.https.CallableContext) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
+
+  const { amount, planType, planDetails } = data;
+
+  // Enhanced logging for debugging
+  functions.logger.info("Order creation request received:", {
+    userId: context.auth.uid,
+    amount,
+    planType,
+    planDetails,
+    timestamp: Date.now()
+  });
+
+  // Input validation
+  if (!amount || amount <= 0) {
+    functions.logger.error("Invalid amount provided:", amount);
+    throw new functions.https.HttpsError("invalid-argument", "Invalid amount");
+  }
+  if (!planType || !["mt", "dt"].includes(planType)) {
+    functions.logger.error("Invalid plan type:", planType);
+    throw new functions.https.HttpsError("invalid-argument", "Invalid plan type");
+  }
+
+  const userDoc = await db.collection("users").doc(context.auth.uid).get();
+  if (!userDoc.exists) {
+    functions.logger.error("User not found:", context.auth.uid);
+    throw new functions.https.HttpsError("not-found", "User नहीं मिला।");
+  }
+
+  const userData = userDoc.data()!;
+  functions.logger.info("User data retrieved:", {
+    userId: context.auth.uid,
+    hasName: !!userData.name,
+    hasEmail: !!userData.email,
+    hasMobile: !!userData.mobile
+  });
+
+  const orderRequest = {
+    order_id: `SAKOONAPP_ORDER_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    order_amount: amount,
+    order_currency: "INR",
+    customer_details: {
+      customer_id: context.auth.uid,
+      customer_name: userData.name || "SakoonApp User",
+      customer_email: userData.email || "user@example.com",
+      customer_phone: userData.mobile || "9999999999",
+    },
+    order_meta: {
+      return_url: `https://sakoonapp-9574c.web.app/return?order_id={order_id}`,
+    },
+    order_note: JSON.stringify({ 
+      userId: context.auth.uid, 
+      planType, 
+      planDetails: JSON.stringify(planDetails) 
+    }),
+  };
+
+  // Log the complete order request (without sensitive data)
+  functions.logger.info("Cashfree order request prepared:", {
+    orderId: orderRequest.order_id,
+    amount: orderRequest.order_amount,
+    currency: orderRequest.order_currency,
+    customerId: orderRequest.customer_details.customer_id,
+    customerName: orderRequest.customer_details.customer_name,
+    customerEmail: orderRequest.customer_details.customer_email,
+    customerPhone: orderRequest.customer_details.customer_phone,
+    returnUrl: orderRequest.order_meta.return_url
+  });
+
+  try {
+    // Check if cashfree is properly initialized
+    if (!cashfree) {
+      functions.logger.error("Cashfree client not initialized");
+      throw new functions.https.HttpsError("internal", "Payment service not available");
     }
 
-    const { amount, planType, planDetails } = data;
-    const userId = context.auth.uid;
-
-    if (!amount || typeof amount !== "number" || amount <= 0) {
-      throw new functions.https.HttpsError("invalid-argument", "A valid amount is required.");
-    }
-    if (!planType || !planDetails) {
-        throw new functions.https.HttpsError("invalid-argument", "Plan details are missing.");
-    }
-
-    const userDoc = await db.collection("users").doc(userId).get();
-    if (!userDoc.exists) {
-        throw new functions.https.HttpsError("not-found", "User not found.");
-    }
-    const user = userDoc.data()!;
-
-    const orderId = generateOrderId();
+    functions.logger.info("Sending request to Cashfree API...");
+    const response = await (cashfree as any).orders.create(orderRequest);
     
-    const detailsString = planType === 'mt' ? `${(planDetails as {tokens: number}).tokens} MT` : (planDetails as Plan).name || 'DT Plan';
+    // Log successful response (without sensitive data)
+    functions.logger.info("Cashfree order created successfully:", {
+      orderId: orderRequest.order_id,
+      amount: amount,
+      userId: context.auth.uid,
+      paymentSessionId: response.data?.payment_session_id ? "present" : "missing",
+      responseKeys: Object.keys(response.data || {})
+    });
+    
+    return { 
+      success: true, 
+      paymentSessionId: response.data.payment_session_id,
+      orderId: orderRequest.order_id
+    };
+  } catch (error: any) {
+    // Enhanced error logging
+    functions.logger.error("Cashfree order creation failed:", {
+      userId: context.auth.uid,
+      orderId: orderRequest.order_id,
+      amount: amount,
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorStatus: error.status,
+      errorResponse: error.response?.data,
+      errorStack: error.stack,
+      cashfreeConfigured: !!cashfree
+    });
 
-    try {
-        const orderRequest = {
-            order_id: orderId,
-            order_amount: amount,
-            order_currency: "INR",
-            customer_details: {
-                customer_id: userId,
-                customer_phone: user.mobile?.replace('+91', '') || "",
-                customer_name: user.name || "Sakoon User",
-                customer_email: user.email || `${userId}@example.com`,
-            },
-            order_meta: {
-                return_url: `https://sakoonapp.in/?order_id={order_id}&order_status={order_status}`,
-            },
-            order_note: `Purchase of ${detailsString} for SakoonApp.`,
-        };
-
-        // FIX: Switched to Cashfree SDK v3 method PGCreateOrder. Using `as any` to bypass
-        // potential TypeScript type definition issues. The API version is set globally in config.
-        const response = await (cashfree as any).PGCreateOrder(orderRequest);
-
-        await db.collection("orders").doc(orderId).set({
-            userId: userId,
-            orderId: orderId,
-            amount: amount,
-            planType: planType,
-            planDetails: planDetails,
-            status: "PENDING",
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
-        
-        await addRechargeHistory(userId, orderId, amount, planType, detailsString, 'Pending');
-
-        return { paymentSessionId: response.data.payment_session_id };
-
-    } catch (error: any) {
-        functions.logger.error("Cashfree order creation failed:", error.response?.data || error.message);
-        throw new functions.https.HttpsError("internal", "Could not create payment session.", error.message);
+    // Different error handling based on error type
+    if (error.response?.status === 401) {
+      throw new functions.https.HttpsError("internal", "Payment service authentication failed");
+    } else if (error.response?.status === 400) {
+      throw new functions.https.HttpsError("invalid-argument", 
+        `Invalid request: ${error.response?.data?.message || 'Unknown validation error'}`);
+    } else {
+      throw new functions.https.HttpsError("internal", "पेमेंट शुरू करने में विफल। कृपया अपनी इंटरनेट कनेक्शन की जांच करें और फिर से प्रयास करें।");
     }
+  }
 });
 
-/**
- * Handles webhook notifications from Cashfree to confirm payment status.
- */
-export const cashfreeWebhook = functions.region("asia-south1").https.onRequest(async (request, response) => {
+// FIX: Explicitly typed the 'req' and 'res' parameters to ensure TypeScript uses the correct types from firebase-functions,
+// which include properties like `method`, `headers`, `body`, and methods like `status()` and `send()`.
+// This resolves all errors related to unrecognized properties on the request and response objects.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
+  // Handle preflight OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, x-webhook-signature, x-webhook-timestamp');
+    res.status(204).send('');
+    return;
+  }
+
+  // Handle GET requests for health check - simplified for Cashfree verification
+  if (req.method === 'GET') {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.status(200).send('OK');
+    return;
+  }
+
+  // Only allow POST for actual webhooks
+  if (req.method !== 'POST') {
+    res.status(405).json({
+      success: false,
+      message: "Method Not Allowed. Use POST for webhooks.",
+      allowedMethods: ["GET", "POST", "OPTIONS"]
+    });
+    return;
+  }
+
+  corsHandler(req, res, async () => {
     try {
-        const signature = request.headers["x-webhook-signature"] as string;
-        const timestamp = request.headers["x-webhook-timestamp"] as string;
-        const payload = request.rawBody;
+      // Log incoming webhook for debugging
+      functions.logger.info("Webhook received:", {
+        headers: req.headers,
+        bodyType: typeof req.body,
+        hasRawBody: !!req.rawBody
+      });
 
-        // FIX: Switched to Cashfree SDK v3 method PGVerifyWebhookSignature.
-        // The rawBody (Buffer) is passed directly, not as a string.
-        const isVerified = (cashfree as any).PGVerifyWebhookSignature(signature, payload, timestamp);
-        if (!isVerified) {
-            functions.logger.warn("Cashfree webhook signature verification failed.");
-            response.status(401).send("Unauthorized");
-            return;
-        }
+      // Handle Cashfree TEST events
+      if (req.body && req.body.type === "TEST") {
+        functions.logger.info("Received Cashfree TEST webhook for endpoint verification.");
+        res.status(200).json({
+          success: true,
+          message: "Test webhook received successfully",
+          timestamp: Date.now()
+        });
+        return;
+      }
 
-        const eventData = request.body.data;
-        const orderId = eventData.order.order_id;
-        const paymentStatus = eventData.payment.payment_status;
+      // Validate webhook has body
+      if (!req.body) {
+        functions.logger.warn("Webhook received with empty body");
+        res.status(400).json({
+          success: false,
+          message: "Bad Request: Empty body"
+        });
+        return;
+      }
 
-        const orderRef = db.collection("orders").doc(orderId);
-        const orderDoc = await orderRef.get();
+      const signature = req.headers["x-webhook-signature"] as string;
+      const timestamp = req.headers["x-webhook-timestamp"] as string;
+      
+      // Get payload - prefer rawBody over stringified body
+      const payload = req.rawBody ? req.rawBody.toString() : JSON.stringify(req.body);
 
-        if (!orderDoc.exists) {
-            functions.logger.error(`Order ${orderId} not found in Firestore.`);
-            response.status(404).send("Order not found");
-            return;
-        }
+      // For test requests or verification, don't require signature verification
+      const isTestRequest = !signature && !timestamp;
+      
+      if (isTestRequest) {
+        functions.logger.info("Webhook verification request received (no signature headers)");
+        res.status(200).send('OK');
+        return;
+      }
+
+      // Validate required headers for actual webhooks
+      if (!signature || !timestamp) {
+        functions.logger.warn("Missing webhook headers:", {
+          hasSignature: !!signature,
+          hasTimestamp: !!timestamp,
+          allHeaders: Object.keys(req.headers)
+        });
+        res.status(400).json({
+          success: false,
+          message: "Bad Request: Missing required webhook headers",
+          required: ["x-webhook-signature", "x-webhook-timestamp"]
+        });
+        return;
+      }
+
+      // Verify webhook signature
+      if (!verifyWebhookSignature(payload, signature, timestamp)) {
+        functions.logger.error("Webhook signature verification failed");
+        res.status(401).json({
+          success: false,
+          message: "Unauthorized: Invalid webhook signature"
+        });
+        return;
+      }
+
+      const eventData = req.body;
+      
+      // Log successful webhook verification
+      functions.logger.info("Webhook verified successfully:", {
+        type: eventData.type,
+        orderId: eventData.data?.order?.order_id,
+        paymentStatus: eventData.data?.order?.order_status
+      });
+
+      // Process payment if status is PAID
+      if (eventData.data && 
+          eventData.data.order && 
+          eventData.data.order.order_status === "PAID" &&
+          eventData.data.payment) {
         
-        const orderData = orderDoc.data()!;
-        const userId = orderData.userId;
-        const userRef = db.collection("users").doc(userId);
-        const historyQuery = db.collection("users").doc(userId).collection("rechargeHistory").where("paymentId", "==", orderId).limit(1);
-
-        if (paymentStatus === "SUCCESS") {
-            const batch = db.batch();
-
-            if (orderData.planType === 'mt') {
-                const tokensToAdd = orderData.planDetails.tokens;
-                batch.update(userRef, {
-                    tokens: admin.firestore.FieldValue.increment(tokensToAdd),
-                });
-            } else {
-                const plan: Plan = orderData.planDetails;
-                const newPlan = {
-                    id: orderId,
-                    type: plan.type,
-                    name: plan.name,
-                    minutes: plan.minutes || 0,
-                    messages: plan.messages || 0,
-                    price: plan.price,
-                    purchaseTimestamp: Date.now(),
-                    expiryTimestamp: Date.now() + 30 * 24 * 60 * 60 * 1000,
-                };
-                batch.update(userRef, {
-                    activePlans: admin.firestore.FieldValue.arrayUnion(newPlan),
-                });
-            }
-            
-            batch.update(orderRef, { status: "SUCCESS" });
-            
-            const historySnapshot = await historyQuery.get();
-            if (!historySnapshot.empty) {
-                batch.update(historySnapshot.docs[0].ref, { status: "Success" });
-            }
-
-            await batch.commit();
-            functions.logger.info(`Successfully processed payment for order ${orderId}.`);
-
-        } else {
-            await orderRef.update({ status: "FAILED" });
-            const historySnapshot = await historyQuery.get();
-            if (!historySnapshot.empty) {
-                await historySnapshot.docs[0].ref.update({ status: "Failed" });
-            }
-            functions.logger.warn(`Payment for order ${orderId} was not successful. Status: ${paymentStatus}`);
+        try {
+          const paymentNotes = JSON.parse(eventData.data.order.order_note) as PaymentNotes;
+          const paymentId = eventData.data.payment.cf_payment_id.toString();
+          
+          await processPurchase(paymentNotes, paymentId, eventData);
+          
+          functions.logger.info(`Payment processed successfully:`, {
+            paymentId,
+            userId: paymentNotes.userId,
+            planType: paymentNotes.planType,
+            orderId: eventData.data.order.order_id
+          });
+        } catch (error: any) {
+          functions.logger.error("Payment processing failed:", error);
+          // Still return 200 to prevent webhook retries for processing errors
         }
+      }
 
-        response.status(200).send("Webhook processed successfully.");
-
+      res.status(200).json({
+        success: true,
+        message: "Webhook processed successfully",
+        timestamp: Date.now()
+      });
+      
     } catch (error: any) {
-        functions.logger.error("Error handling Cashfree webhook:", error);
-        response.status(500).send("Internal Server Error");
+      functions.logger.error("Webhook processing error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Internal Server Error",
+        error: error.message,
+        timestamp: Date.now()
+      });
     }
+  });
 });

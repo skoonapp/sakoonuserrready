@@ -14,6 +14,7 @@ import ChatUI from './ChatUI';
 import RechargeModal from './RechargeModal';
 import ViewLoader from './ViewLoader';
 import CashfreeModal from './CashfreeModal';
+import Notification from './Notification';
 
 // --- Lazy Load Views for Code Splitting ---
 const HomeView = lazy(() => import('./Listeners'));
@@ -63,6 +64,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
     const [paymentDescription, setPaymentDescription] = useState('');
     const [foregroundNotification, setForegroundNotification] = useState<{ title: string; body: string } | null>(null);
+    const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
     
     // --- Session State ---
     const [activeCallSession, setActiveCallSession] = useState<CallSession | null>(null);
@@ -125,13 +127,15 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         if (!user || !messaging) return;
         const setupNotifications = async () => {
             try {
-                if (Notification.permission === 'granted') {
+                // FIX: Use `window.Notification` to access the browser's native Notification API.
+                // The imported `Notification` component was shadowing the global API, causing the error.
+                if (window.Notification.permission === 'granted') {
                     const currentToken = await messaging.getToken();
                     if (currentToken && user.fcmToken !== currentToken) {
                         await db.collection('users').doc(user.uid).update({ fcmToken: currentToken });
                     }
-                } else if (Notification.permission !== 'denied') {
-                    const permission = await Notification.requestPermission();
+                } else if (window.Notification.permission !== 'denied') {
+                    const permission = await window.Notification.requestPermission();
                     if (permission === 'granted') {
                        const currentToken = await messaging.getToken();
                        await db.collection('users').doc(user.uid).update({ fcmToken: currentToken });
@@ -180,6 +184,10 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
 
     // --- Handlers ---
     
+    const showNotification = useCallback((title: string, message: string) => {
+        setNotification({ title, message });
+    }, []);
+
     const handleInstallClick = useCallback(() => {
         if (deferredInstallPrompt) {
             deferredInstallPrompt.prompt();
@@ -399,8 +407,8 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const renderViewByIndex = useCallback((index: number) => {
         switch (index) {
             case 0: return <HomeView currentUser={user} wallet={wallet} onPurchase={handlePurchase} loadingPlan={loadingPlan} />;
-            case 1: return <CallsView onStartSession={handleStartSession} currentUser={user} />;
-            case 2: return <ChatsView onStartSession={handleStartSession} currentUser={user} />;
+            case 1: return <CallsView onStartSession={handleStartSession} currentUser={user} showNotification={showNotification} />;
+            case 2: return <ChatsView onStartSession={handleStartSession} currentUser={user} showNotification={showNotification} />;
             case 3: return <ProfileView 
                             currentUser={user}
                             onShowTerms={() => setShowPolicy('terms')}
@@ -414,7 +422,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         />;
             default: return null;
         }
-    }, [user, wallet, loadingPlan, handlePurchase, handleStartSession, deferredInstallPrompt, handleInstallClick, handleLogout, isDarkMode, toggleDarkMode]);
+    }, [user, wallet, loadingPlan, handlePurchase, handleStartSession, deferredInstallPrompt, handleInstallClick, handleLogout, isDarkMode, toggleDarkMode, showNotification]);
 
     if (wallet.loading) return <SplashScreen />;
     if (activeCallSession) return <CallUI session={activeCallSession} user={user} onLeave={handleCallSessionEnd} />;
@@ -423,6 +431,14 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     return (
         <div className="relative w-full max-w-md mx-auto bg-slate-100 dark:bg-slate-950 flex flex-col h-screen shadow-2xl transition-colors duration-300 overflow-hidden">
             <Header wallet={wallet} />
+            
+            {notification && (
+                <Notification
+                    title={notification.title}
+                    message={notification.message}
+                    onClose={() => setNotification(null)}
+                />
+            )}
             
             {feedback && (
                 <div className={`fixed top-16 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-40 p-3 rounded-lg text-center font-semibold animate-fade-in-down ${feedback.type === 'success' ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'}`}>

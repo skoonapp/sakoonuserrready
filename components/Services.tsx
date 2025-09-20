@@ -9,9 +9,10 @@ import { useListeners } from '../hooks/useListeners';
 interface CallsViewProps {
   onStartSession: (type: 'call' | 'chat', listener: Listener) => void;
   currentUser: User;
+  showNotification: (title: string, message: string) => void;
 }
 
-const CallsView: React.FC<CallsViewProps> = ({ onStartSession, currentUser }) => {
+const CallsView: React.FC<CallsViewProps> = ({ onStartSession, currentUser, showNotification }) => {
   const favorites = currentUser.favoriteListeners || [];
   const { listeners, loading, loadingMore, hasMore, loadMoreListeners } = useListeners(favorites);
 
@@ -33,7 +34,7 @@ const CallsView: React.FC<CallsViewProps> = ({ onStartSession, currentUser }) =>
       // The useListeners hook will automatically refetch when the favorites prop changes.
     } catch (error) {
       console.error("Failed to update favorites:", error);
-      alert("Error updating favorites. Please try again.");
+      showNotification("SakoonApp", "Failed to update favorites. Please check your connection and try again.");
     }
   };
 

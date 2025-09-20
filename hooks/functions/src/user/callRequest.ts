@@ -1,6 +1,7 @@
 // FIX: Using v1 functions to match the syntax used in the project (e.g., .region(...)).
 import * as functions from "firebase-functions/v1";
-import { zegoAppId, zegoServerSecret } from "../config";
+// FIX: Corrected Zego config import names to match the exports in config.ts.
+import { ZEGO_APP_ID, ZEGO_SERVER_SECRET } from "../config";
 import { RtcTokenBuilder, RtcRole } from "zego-express-engine-serverless";
 
 export const generateZegoToken = functions.region("asia-south1").https.onCall(async (data, context) => {
@@ -19,8 +20,8 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
     const payload = "";
 
     const token = RtcTokenBuilder.buildTokenWithUid(
-        zegoAppId,
-        zegoServerSecret,
+        ZEGO_APP_ID,
+        ZEGO_SERVER_SECRET,
         planId,
         userId, // Use string UID
         RtcRole.PUBLISHER,
