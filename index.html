@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <title>SakoonApp</title>
+
+    <!-- PWA and Mobile Meta Tags -->
+    <!-- The manifest link is now injected automatically by vite-plugin-pwa -->
+    <link rel="apple-touch-icon" href="https://listenerimages.netlify.app/images/listener8.webp">
+    <meta name="theme-color" content="#0891B2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // This config script must be placed AFTER the Tailwind CSS script.
+      // It tells Tailwind to use the 'class' strategy for dark mode,
+      // allowing our JavaScript to toggle it by adding/removing the 'dark' class
+      // from the <html> element.
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+            extend: {
+                colors: {
+                    'slate-950': '#3F4A5C',
+                },
+            },
+        },
+      }
+    </script>
+    <style>
+      @keyframes ken-burns {
+        0% { transform: scale(1) translate(0, 0); }
+        100% { transform: scale(1.1) translate(-2%, -2%); }
+      }
+      @keyframes title-glow {
+        0%, 100% { text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #0891B2, 0 0 40px #0891B2; }
+        50% { text-shadow: 0 0 20px #fff, 0 0 30px #0891B2, 0 0 40px #0891B2, 0 0 50px #0891B2; }
+      }
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+      .animate-shimmer {
+        background-image: linear-gradient(
+            100deg,
+            transparent 20%,
+            rgba(255, 255, 255, 0.3) 50%,
+            transparent 80%
+        );
+        background-size: 200% 100%;
+        background-repeat: no-repeat;
+        animation: shimmer 3s infinite linear;
+      }
+      #static-splash-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        background-color: #0f172a; /* slate-900 */
+        color: white;
+        font-family: 'Poppins', sans-serif;
+        transition: opacity 0.5s ease-out;
+        text-align: center;
+      }
+      #static-splash-screen .splash-bg {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1964&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        opacity: 0.2;
+        animation: ken-burns 20s ease-in-out infinite alternate;
+      }
+      #static-splash-screen .splash-gradient {
+        position: absolute;
+        inset: 0;
+        z-index: -1;
+        background: linear-gradient(to top, #0f172a, rgba(15, 23, 42, 0.8), transparent);
+      }
+      #static-splash-screen h1 {
+        font-size: 3.75rem; /* text-6xl */
+        font-weight: 700;
+        animation: title-glow 3s ease-in-out infinite alternate;
+      }
+      #static-splash-screen p {
+        margin-top: 2rem;
+        font-size: 1.125rem; /* text-lg */
+        color: #a5f3fc; /* cyan-200 */
+      }
+    </style>
+    <script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
+    <script src="https://unpkg.com/zego-express-engine-webrtc/ZegoExpressEngine.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/index.css">
+<script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.16.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.1.1/",
+    "react/": "https://aistudiocdn.com/react@^19.1.1/",
+    "react": "https://aistudiocdn.com/react@^19.1.1",
+    "firebase-admin": "https://aistudiocdn.com/firebase-admin@^13.5.0",
+    "vite": "https://aistudiocdn.com/vite@^7.1.4",
+    "firebase-functions/": "https://aistudiocdn.com/firebase-functions@^6.4.0/",
+    "cors": "https://aistudiocdn.com/cors@^2.8.5",
+    "crypto": "https://aistudiocdn.com/crypto@^1.0.1",
+    "express": "https://aistudiocdn.com/express@^5.1.0",
+    "path": "https://aistudiocdn.com/path@^0.12.7",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.2.1/",
+    "vite-plugin-pwa": "https://aistudiocdn.com/vite-plugin-pwa@^1.0.3",
+    "razorpay": "https://aistudiocdn.com/razorpay@^2.9.6",
+    "cashfree-pg": "https://aistudiocdn.com/cashfree-pg@^5.0.8",
+    "url": "https://aistudiocdn.com/url@^0.11.4",
+    "process": "https://aistudiocdn.com/process@^0.11.10",
+    "buffer": "https://aistudiocdn.com/buffer@^6.0.3"
+  }
+}
+</script>
+</head>
+  <body class="bg-slate-50 transition-colors duration-300">
+    <div id="static-splash-screen">
+      <div class="splash-bg"></div>
+      <div class="splash-gradient"></div>
+      <div>
+        <h1>SakoonApp</h1>
+        <p>लोड हो रहा है, कृपया प्रतीक्षा करें...</p>
+      </div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+
+    <!-- The service worker registration script has been removed. -->
+    <!-- vite-plugin-pwa will inject its own registration logic. -->
+  </body>
+</html>
