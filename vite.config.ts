@@ -1,6 +1,7 @@
 
 
 
+
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { defineConfig, loadEnv } from 'vite';
@@ -65,22 +66,5 @@ export default defineConfig(({ mode }) => {
           '@': path.resolve(__dirname),
         }
       },
-      // FIX: Added build configuration to externalize dependencies that are loaded via the importmap in index.html.
-      // This explicitly tells Vite not to bundle these packages, resolving the dependency resolution error on Netlify.
-      build: {
-        rollupOptions: {
-          external: [
-            "@google/genai",
-            "firebase",
-            "react",
-            "react-dom",
-            // Match deep imports like 'firebase/auth' and 'react-dom/client'
-            /^@google\/genai.*/,
-            /^firebase\/.*/, 
-            /^react\/.*/,
-            /^react-dom\/.*/,
-          ]
-        }
-      }
     };
 });

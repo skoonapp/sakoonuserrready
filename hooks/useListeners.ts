@@ -1,4 +1,5 @@
 
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
@@ -42,6 +43,9 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
             setLoadingMore(true);
         } else {
             setLoading(true);
+            // Reset pagination state for a fresh fetch
+            setLastVisible(null);
+            setHasMore(true);
         }
 
         try {
@@ -79,9 +83,8 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
     useEffect(() => {
         if (!areArraysEqual(favoriteListenerIds, prevFavoritesRef.current)) {
             prevFavoritesRef.current = favoriteListenerIds;
-            setListeners([]);
-            setLastVisible(null);
-            setHasMore(true);
+            // No longer clearing the list here to prevent flicker.
+            // fetchAndSortListeners will handle the loading state and replace the data.
             fetchAndSortListeners(false);
         }
     }, [favoriteListenerIds, fetchAndSortListeners]);
