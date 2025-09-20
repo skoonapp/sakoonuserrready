@@ -11,6 +11,7 @@ export const useAuthHandler = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const confirmationResultRef = useRef<firebase.auth.ConfirmationResult | null>(null);
+    const appVerifierRef = useRef<firebase.auth.RecaptchaVerifier | null>(null);
 
     // On mount, check if an auth error was passed from a redirect
     useEffect(() => {
@@ -43,28 +44,45 @@ export const useAuthHandler = () => {
     const sendOtpToPhone = useCallback(async (phoneNumber: string) => {
         setLoading(true);
         setError('');
-        
-        // Ensure reCAPTCHA container exists
-        if (!document.getElementById('recaptcha-container')) {
-             const container = document.createElement('div');
-             container.id = 'recaptcha-container';
-             document.body.appendChild(container);
-        }
 
         try {
+            // Ensure reCAPTCHA container exists and is clean for each attempt
+            let container = document.getElementById('recaptcha-container');
+            if (container) {
+                container.innerHTML = '';
+            } else {
+                container = document.createElement('div');
+                container.id = 'recaptcha-container';
+                document.body.appendChild(container);
+            }
+            
+            // Create and render the verifier
             const appVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
                 'size': 'invisible',
             });
+            appVerifierRef.current = appVerifier;
+
+            // Explicitly render the verifier and wait for it to be ready.
+            // This is crucial for preventing race conditions that cause errors.
+            await appVerifier.render();
+
             const confirmationResult = await auth.signInWithPhoneNumber(`+91${phoneNumber}`, appVerifier);
             confirmationResultRef.current = confirmationResult;
-            return true; // Indicate success to the UI component
+            return true; // Indicate success
         } catch (err: any) {
              console.error("SMS sending error:", err);
              const messages: { [key: string]: string } = {
-                'auth/too-many-requests': 'Too many attempts. Please try again later.',
-                'auth/invalid-phone-number': 'Invalid phone number. Please check again.'
+                'auth/too-many-requests': 'Too many attempts from this device. Please try again later.',
+                'auth/invalid-phone-number': 'The phone number you entered is not valid.',
+                'auth/captcha-check-failed': 'reCAPTCHA verification failed. Please try again.',
+                'auth/network-request-failed': 'Network error. Please check your connection and try again.'
              };
-             setError(messages[err.code] || 'Failed to send SMS. Check your network and try again.');
+             setError(messages[err.code] || 'Failed to send OTP. Please try again.');
+
+             // Cleanup verifier on error
+             if (appVerifierRef.current) {
+                appVerifierRef.current.clear();
+             }
              return false; // Indicate failure
         } finally {
             setLoading(false);
