@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { db } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
 import type { Listener } from '../types';
@@ -11,10 +11,7 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastVisible, setLastVisible] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData> | null>(null);
     const [hasMore, setHasMore] = useState(true);
-    const unsubscribesRef = useRef(new Map<number, () => void>());
-    const isInitialLoad = useRef(true);
-    
-    // Sort function that will be used in multiple places
+
     const sortListeners = useCallback((list: Listener[]): Listener[] => {
         return [...list].sort((a, b) => {
             const aIsFav = favoriteListenerIds.includes(a.id);
@@ -24,81 +21,68 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
             return b.rating - a.rating; // Then by rating
         });
     }, [favoriteListenerIds]);
+    
+    // Effect for the main real-time query on the first page of listeners
+    useEffect(() => {
+        setLoading(true);
 
-    const fetchListeners = useCallback(async (loadMore = false) => {
-        if (loadMore && !hasMore) return;
+        const query = db.collection('listeners')
+            .orderBy('online', 'desc')
+            .orderBy('rating', 'desc') // Secondary sort for stable ordering
+            .limit(PAGE_SIZE);
+
+        const unsubscribe = query.onSnapshot(snapshot => {
+            const firstPageListeners = snapshot.docs.map(doc => doc.data() as Listener);
+            
+            // This real-time listener provides the most current first page.
+            // We replace our current list with this, and then sort it
+            // to bring favorites to the top.
+            setListeners(sortListeners(firstPageListeners));
+            
+            setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+            setHasMore(firstPageListeners.length === PAGE_SIZE);
+            setLoading(false);
+        }, error => {
+            console.error("Error with real-time listener fetch:", error);
+            setLoading(false);
+        });
+
+        // Cleanup subscription on unmount or when favorites change (which reruns the effect)
+        return () => unsubscribe();
+
+    }, [sortListeners]); // Dependency ensures this re-runs if favorite IDs change
+
+    const loadMoreListeners = useCallback(async () => {
+        if (!hasMore || loadingMore || !lastVisible) return;
         
-        loadMore ? setLoadingMore(true) : setLoading(true);
-
-        // On a fresh fetch (not loading more), clear old state and subscriptions
-        if (!loadMore) {
-            unsubscribesRef.current.forEach(unsub => unsub());
-            unsubscribesRef.current.clear();
-        }
+        setLoadingMore(true);
 
         try {
-            let query = db.collection('listeners')
-                .orderBy('online', 'desc') // Initial sort helps, but we'll re-sort with favorites
+            const query = db.collection('listeners')
+                .orderBy('online', 'desc')
+                .orderBy('rating', 'desc')
+                .startAfter(lastVisible)
                 .limit(PAGE_SIZE);
+            
+            const snapshot = await query.get();
+            const newListeners = snapshot.docs.map(doc => doc.data() as Listener);
 
-            const startAfterDoc = loadMore ? lastVisible : null;
-            if (startAfterDoc) {
-                query = query.startAfter(startAfterDoc);
-            }
-
-            const snapshots = await query.get();
-            const newListeners = snapshots.docs.map(doc => doc.data() as Listener);
-
-            setLastVisible(snapshots.docs[snapshots.docs.length - 1] || null);
+            setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
             setHasMore(newListeners.length === PAGE_SIZE);
 
-            // Attach real-time listeners for all newly fetched items
-            newListeners.forEach(listener => {
-                if (unsubscribesRef.current.has(listener.id)) return; // Already subscribed
-
-                const unsub = db.collection('listeners').doc(String(listener.id)).onSnapshot(doc => {
-                    if (doc.exists) {
-                        const updatedData = doc.data() as Listener;
-                        setListeners(currentList => {
-                            const listWithUpdate = currentList.map(l => l.id === updatedData.id ? updatedData : l);
-                            return sortListeners(listWithUpdate);
-                        });
-                    }
-                });
-                unsubscribesRef.current.set(listener.id, unsub);
-            });
-            
-            // Update the main list state, merging old and new listeners if loading more
-            setListeners(currentList => {
-                const combinedList = loadMore ? [...currentList, ...newListeners] : newListeners;
-                // De-duplicate in case of race conditions
-                // FIX: Explicitly typed the generic arguments for `new Map()` to ensure TypeScript correctly infers `uniqueListeners` as `Listener[]` instead of `unknown[]`, resolving the type error when passing it to `sortListeners`.
-                const uniqueListeners = Array.from(new Map<number, Listener>(combinedList.map(l => [l.id, l])).values());
-                return sortListeners(uniqueListeners);
+            // Append new listeners and re-sort the entire list
+            setListeners(prevListeners => {
+                const combined = [...prevListeners, ...newListeners];
+                const unique = Array.from(new Map<number, Listener>(combined.map(l => [l.id, l])).values());
+                return sortListeners(unique);
             });
 
         } catch (error) {
-            console.error("Error fetching listeners:", error);
+            console.error("Error loading more listeners:", error);
         } finally {
-            loadMore ? setLoadingMore(false) : setLoading(false);
+            setLoadingMore(false);
         }
-    }, [hasMore, lastVisible, sortListeners]);
+    }, [hasMore, loadingMore, lastVisible, sortListeners]);
 
-    // This effect handles the initial fetch and refetches when favorites change
-    useEffect(() => {
-        // Use a ref to prevent re-fetching on every render, only on actual dependency changes
-        if (isInitialLoad.current) {
-            isInitialLoad.current = false;
-            fetchListeners(false);
-        }
-    }, [favoriteListenerIds, fetchListeners]);
-
-    // Cleanup all subscriptions on component unmount
-    useEffect(() => {
-        return () => {
-            unsubscribesRef.current.forEach(unsub => unsub());
-        }
-    }, []);
-
-    return { listeners, loading, loadingMore, hasMore, loadMoreListeners: () => fetchListeners(true) };
+    return { listeners, loading, loadingMore, hasMore, loadMoreListeners };
 };
