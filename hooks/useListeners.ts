@@ -1,5 +1,3 @@
-
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { db } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
@@ -7,134 +5,100 @@ import type { Listener } from '../types';
 
 const PAGE_SIZE = 10;
 
-const areArraysEqual = (a: number[], b: number[]) => {
-    if (a.length !== b.length) return false;
-    const sortedA = [...a].sort();
-    const sortedB = [...b].sort();
-    return sortedA.every((value, index) => value === sortedB[index]);
-};
-
 export const useListeners = (favoriteListenerIds: number[] = []) => {
     const [listeners, setListeners] = useState<Listener[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastVisible, setLastVisible] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData> | null>(null);
     const [hasMore, setHasMore] = useState(true);
-    const prevFavoritesRef = useRef<number[]>([]);
     const unsubscribesRef = useRef(new Map<number, () => void>());
-
-    const sortListeners = useCallback((list: Listener[]) => {
-        // Create a mutable copy to sort
-        const sortedList = [...list];
-        sortedList.sort((a, b) => {
+    const isInitialLoad = useRef(true);
+    
+    // Sort function that will be used in multiple places
+    const sortListeners = useCallback((list: Listener[]): Listener[] => {
+        return [...list].sort((a, b) => {
             const aIsFav = favoriteListenerIds.includes(a.id);
             const bIsFav = favoriteListenerIds.includes(b.id);
-            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
-            if (a.online !== b.online) return a.online ? -1 : 1;
-            return b.rating - a.rating;
+            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1; // Favorites first
+            if (a.online !== b.online) return a.online ? -1 : 1; // Online first
+            return b.rating - a.rating; // Then by rating
         });
-        return sortedList;
     }, [favoriteListenerIds]);
 
-    const fetchAndSortListeners = useCallback(async (loadMore = false) => {
-        if (!hasMore && loadMore) return;
+    const fetchListeners = useCallback(async (loadMore = false) => {
+        if (loadMore && !hasMore) return;
+        
+        loadMore ? setLoadingMore(true) : setLoading(true);
 
-        if (loadMore) {
-            setLoadingMore(true);
-        } else {
-            setLoading(true);
-            // Reset pagination state for a fresh fetch
-            setLastVisible(null);
-            setHasMore(true);
+        // On a fresh fetch (not loading more), clear old state and subscriptions
+        if (!loadMore) {
+            unsubscribesRef.current.forEach(unsub => unsub());
+            unsubscribesRef.current.clear();
         }
 
         try {
             let query = db.collection('listeners')
-                .orderBy('online', 'desc')
+                .orderBy('online', 'desc') // Initial sort helps, but we'll re-sort with favorites
                 .limit(PAGE_SIZE);
 
-            if (loadMore && lastVisible) {
-                query = query.startAfter(lastVisible);
+            const startAfterDoc = loadMore ? lastVisible : null;
+            if (startAfterDoc) {
+                query = query.startAfter(startAfterDoc);
             }
 
-            const documentSnapshots = await query.get();
-            const newListeners = documentSnapshots.docs.map(doc => doc.data() as Listener);
+            const snapshots = await query.get();
+            const newListeners = snapshots.docs.map(doc => doc.data() as Listener);
 
-            setLastVisible(documentSnapshots.docs[documentSnapshots.docs.length - 1] || null);
+            setLastVisible(snapshots.docs[snapshots.docs.length - 1] || null);
             setHasMore(newListeners.length === PAGE_SIZE);
 
-            setListeners(prevListeners => {
-                const combinedListeners = loadMore ? [...prevListeners, ...newListeners] : newListeners;
-                const uniqueListenersMap = new Map<number, Listener>();
-                combinedListeners.forEach(l => uniqueListenersMap.set(l.id, l));
-                
-                return sortListeners(Array.from(uniqueListenersMap.values()));
+            // Attach real-time listeners for all newly fetched items
+            newListeners.forEach(listener => {
+                if (unsubscribesRef.current.has(listener.id)) return; // Already subscribed
+
+                const unsub = db.collection('listeners').doc(String(listener.id)).onSnapshot(doc => {
+                    if (doc.exists) {
+                        const updatedData = doc.data() as Listener;
+                        setListeners(currentList => {
+                            const listWithUpdate = currentList.map(l => l.id === updatedData.id ? updatedData : l);
+                            return sortListeners(listWithUpdate);
+                        });
+                    }
+                });
+                unsubscribesRef.current.set(listener.id, unsub);
+            });
+            
+            // Update the main list state, merging old and new listeners if loading more
+            setListeners(currentList => {
+                const combinedList = loadMore ? [...currentList, ...newListeners] : newListeners;
+                // De-duplicate in case of race conditions
+                // FIX: Explicitly typed the generic arguments for `new Map()` to ensure TypeScript correctly infers `uniqueListeners` as `Listener[]` instead of `unknown[]`, resolving the type error when passing it to `sortListeners`.
+                const uniqueListeners = Array.from(new Map<number, Listener>(combinedList.map(l => [l.id, l])).values());
+                return sortListeners(uniqueListeners);
             });
 
         } catch (error) {
             console.error("Error fetching listeners:", error);
         } finally {
-            setLoading(false);
-            setLoadingMore(false);
+            loadMore ? setLoadingMore(false) : setLoading(false);
         }
     }, [hasMore, lastVisible, sortListeners]);
 
-    // Effect for initial fetch and refetching when favorites change
+    // This effect handles the initial fetch and refetches when favorites change
     useEffect(() => {
-        if (!areArraysEqual(favoriteListenerIds, prevFavoritesRef.current)) {
-            prevFavoritesRef.current = favoriteListenerIds;
-            // No longer clearing the list here to prevent flicker.
-            // fetchAndSortListeners will handle the loading state and replace the data.
-            fetchAndSortListeners(false);
+        // Use a ref to prevent re-fetching on every render, only on actual dependency changes
+        if (isInitialLoad.current) {
+            isInitialLoad.current = false;
+            fetchListeners(false);
         }
-    }, [favoriteListenerIds, fetchAndSortListeners]);
-    
-    // Effect to attach real-time listeners to currently loaded listeners
-    useEffect(() => {
-        if(listeners.length === 0) return;
-        
-        const currentIds = new Set(listeners.map(l => l.id));
-        const subscribedIds = new Set(unsubscribesRef.current.keys());
+    }, [favoriteListenerIds, fetchListeners]);
 
-        // Subscribe to new listeners that have been loaded
-        listeners.forEach(listener => {
-            if (!subscribedIds.has(listener.id)) {
-                // Assuming document ID in 'listeners' collection is the string version of the listener's numeric ID
-                const unsub = db.collection('listeners').doc(String(listener.id)).onSnapshot(doc => {
-                    if (doc.exists) {
-                        const updatedData = doc.data() as Listener;
-                        setListeners(currentListeners => {
-                            const listenerExists = currentListeners.some(l => l.id === updatedData.id);
-                            // Only update if the listener is still in the list
-                            if (listenerExists) {
-                                const newArr = currentListeners.map(l => l.id === updatedData.id ? updatedData : l);
-                                return sortListeners(newArr);
-                            }
-                            return currentListeners;
-                        });
-                    }
-                }, error => {
-                    console.error(`Error listening to listener ${listener.id}:`, error);
-                });
-                unsubscribesRef.current.set(listener.id, unsub);
-            }
-        });
-
-    }, [listeners, sortListeners]);
-
-    // Effect for cleaning up all listeners on unmount
+    // Cleanup all subscriptions on component unmount
     useEffect(() => {
         return () => {
             unsubscribesRef.current.forEach(unsub => unsub());
         }
     }, []);
 
-
-    const loadMoreListeners = () => {
-        if (!loadingMore && hasMore) {
-            fetchAndSortListeners(true);
-        }
-    };
-
-    return { listeners, loading, loadingMore, hasMore, loadMoreListeners };
+    return { listeners, loading, loadingMore, hasMore, loadMoreListeners: () => fetchListeners(true) };
 };
