@@ -17,85 +17,79 @@ const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.
     };
 };
 
+
 export const useListeners = (favoriteListenerIds: string[] = []) => {
-    // State for the final, combined listener list
     const [listeners, setListeners] = useState<Listener[]>([]);
-    
-    // State for data fetched from Firestore
-    const [firestoreListeners, setFirestoreListeners] = useState<Omit<Listener, 'online'>[]>([]);
-    
-    // State for online statuses from Realtime Database
-    const [onlineStatuses, setOnlineStatuses] = useState<{ [key: string]: boolean }>({});
-
-    // Loading and pagination state
     const [loading, setLoading] = useState(true);
-    
-    const sortAndSetListeners = useCallback((list: Listener[]): void => {
-        const sorted = [...list].sort((a, b) => {
-            // 1. Online status (true comes first)
-            if (a.online !== b.online) return a.online ? -1 : 1;
-            
-            // 2. Favorites (true comes first)
-            const aIsFav = favoriteListenerIds.includes(a.id);
-            const bIsFav = favoriteListenerIds.includes(b.id);
-            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
 
-            // 3. Rating (higher comes first)
-            return b.rating - a.rating;
-        });
-        setListeners(sorted);
-    }, [favoriteListenerIds]);
-    
-    // --- DATA FETCHING EFFECTS ---
-
-    // Effect for fetching online statuses from Realtime Database
-    useEffect(() => {
-        const statusRef = rtdb.ref('status');
-        const onStatusChange = (snapshot: firebase.database.DataSnapshot) => {
-            const statuses = snapshot.val() || {};
-            const newOnlineStatuses: { [key: string]: boolean } = {};
-            Object.keys(statuses).forEach(uid => {
-                newOnlineStatuses[uid] = statuses[uid]?.isOnline === true;
-            });
-            setOnlineStatuses(newOnlineStatuses);
-            setLoading(false); // Assume loading is done after first status check
-        };
-        statusRef.on('value', onStatusChange);
-        return () => statusRef.off('value', onStatusChange);
-    }, []);
-
-    // Effect for the initial Firestore query to get ALL active listeners
     useEffect(() => {
         setLoading(true);
-        // FIX: Removed the .where() clause to avoid potential missing index errors.
-        // We will fetch all listeners and filter for 'active' status on the client.
-        const query = db.collection('listeners');
 
-        const unsubscribe = query.onSnapshot(snapshot => {
-            // FIX: Filter for active listeners on the client side to bypass index requirements.
-            const activeDocs = snapshot.docs.filter(doc => doc.data()?.status === 'active');
-            const allListeners = activeDocs.map(transformListenerDoc);
-            
-            setFirestoreListeners(allListeners);
-        }, error => {
-            console.error("Error with real-time listener fetch:", error);
-            setLoading(false);
-        });
+        // Step 1: Get all listener profiles from Firestore.
+        const listenersQuery = db.collection('listeners');
+        
+        // This outer listener will react to changes in the listeners collection (e.g., a new listener is added).
+        const unsubscribeFirestore = listenersQuery.onSnapshot(
+            (querySnapshot) => {
+                // Filter for 'active' listeners on the client-side. This avoids needing a Firestore index.
+                const activeListenersProfiles = querySnapshot.docs
+                    .filter(doc => doc.data()?.status === 'active')
+                    .map(transformListenerDoc);
+                
+                // Step 2: Now that we have the profiles of active listeners, listen for their online status from RTDB.
+                const statusRef = rtdb.ref('status');
+                
+                const onStatusChange = (statusSnapshot: firebase.database.DataSnapshot) => {
+                    const onlineStatuses = statusSnapshot.val() || {};
+                    
+                    // Step 3: Combine profile data with live online status.
+                    const combinedListeners = activeListenersProfiles.map(profile => ({
+                        ...profile,
+                        online: onlineStatuses[profile.id]?.isOnline === true,
+                    }));
+                    
+                    // Step 4: Sort the final, combined list according to business logic.
+                    const sorted = [...combinedListeners].sort((a, b) => {
+                        // Priority 1: Online status (online users come first)
+                        if (a.online !== b.online) return a.online ? -1 : 1;
+                        
+                        // Priority 2: Favorites (favorited users come next)
+                        const aIsFav = favoriteListenerIds.includes(a.id);
+                        const bIsFav = favoriteListenerIds.includes(b.id);
+                        if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
 
-        return () => unsubscribe();
-    }, []); // Only runs once on mount
+                        // Priority 3: Rating (higher rated users come next)
+                        return b.rating - a.rating;
+                    });
+                    
+                    setListeners(sorted);
+                    setLoading(false); // Set loading to false only after all data is combined and sorted.
+                };
 
-    // --- DATA COMBINING EFFECT ---
+                // Attach the RTDB listener.
+                statusRef.on('value', onStatusChange);
 
-    // Effect to combine Firestore data and RTDB statuses into the final list
-    useEffect(() => {
-        const combined = firestoreListeners.map(l => ({
-            ...l,
-            online: onlineStatuses[l.id] || false,
-        }));
-        sortAndSetListeners(combined);
-    }, [firestoreListeners, onlineStatuses, sortAndSetListeners]);
+                // Return a cleanup function for the RTDB listener. This will be called when the
+                // Firestore data changes, ensuring we re-attach the listener with the new profiles.
+                return () => {
+                    statusRef.off('value', onStatusChange);
+                };
+            },
+            (error) => {
+                console.error("Error fetching listeners from Firestore:", error);
+                setLoading(false);
+            }
+        );
 
+        // This is the main cleanup function for the useEffect hook.
+        // It will detach the Firestore listener when the component unmounts.
+        // The inner cleanup function handles detaching the RTDB listener.
+        return () => {
+            unsubscribeFirestore();
+        };
+    }, [favoriteListenerIds]); // Rerun the entire effect if the user's favorites change.
 
+    // Return a simplified API consistent with what the UI components expect.
+    // Pagination is handled by fetching all active listeners at once.
     return { listeners, loading, loadingMore: false, hasMore: false, loadMoreListeners: () => {} };
 };
