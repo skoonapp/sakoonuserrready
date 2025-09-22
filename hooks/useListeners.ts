@@ -5,6 +5,28 @@ import type { Listener } from '../types';
 
 const PAGE_SIZE = 10;
 
+/**
+ * Transforms a Firestore listener document into the Listener type used by the app.
+ * This acts as an adapter between the database schema and the app's data model.
+ * @param doc The Firestore document snapshot.
+ * @returns A Listener object compatible with the app's components.
+ */
+const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.firestore.DocumentData>): Listener => {
+    const data = doc.data() || {};
+    return {
+        id: data.id || 0, // Assumes a numeric 'id' field exists on the document.
+        name: data.displayName || data.name || 'Unnamed Listener',
+        image: data.avatarUrl || data.image || '',
+        // The listener is considered online if either 'isOnline' is true or 'appStatus' is "Available".
+        online: data.isOnline === true || data.appStatus === "Available",
+        rating: data.rating || 0,
+        reviewsCount: data.reviewsCount || 0,
+        gender: data.gender || 'Female',
+        age: data.age || 0,
+    };
+};
+
+
 export const useListeners = (favoriteListenerIds: number[] = []) => {
     const [listeners, setListeners] = useState<Listener[]>([]);
     const [loading, setLoading] = useState(true);
@@ -26,17 +48,16 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
     useEffect(() => {
         setLoading(true);
 
+        // FIX: Changed query to order by `isOnline` which exists in the Firestore documents.
         const query = db.collection('listeners')
-            .orderBy('online', 'desc')
+            .orderBy('isOnline', 'desc')
             .orderBy('rating', 'desc') // Secondary sort for stable ordering
             .limit(PAGE_SIZE);
 
         const unsubscribe = query.onSnapshot(snapshot => {
-            const firstPageListeners = snapshot.docs.map(doc => doc.data() as Listener);
+            // FIX: Map and transform each document to match the app's expected Listener type.
+            const firstPageListeners = snapshot.docs.map(transformListenerDoc);
             
-            // This real-time listener provides the most current first page.
-            // We replace our current list with this, and then sort it
-            // to bring favorites to the top.
             setListeners(sortListeners(firstPageListeners));
             
             setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
@@ -58,14 +79,16 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
         setLoadingMore(true);
 
         try {
+            // FIX: Changed query to order by `isOnline`.
             const query = db.collection('listeners')
-                .orderBy('online', 'desc')
+                .orderBy('isOnline', 'desc')
                 .orderBy('rating', 'desc')
                 .startAfter(lastVisible)
                 .limit(PAGE_SIZE);
             
             const snapshot = await query.get();
-            const newListeners = snapshot.docs.map(doc => doc.data() as Listener);
+            // FIX: Transform new documents as well.
+            const newListeners = snapshot.docs.map(transformListenerDoc);
 
             setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
             setHasMore(newListeners.length === PAGE_SIZE);
