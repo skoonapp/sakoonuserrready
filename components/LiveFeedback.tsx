@@ -16,7 +16,7 @@ const ChatsView: React.FC<ChatsViewProps> = ({ onStartSession, currentUser, show
     const favorites = currentUser.favoriteListeners || [];
     const { listeners, loading, loadingMore, hasMore, loadMoreListeners } = useListeners(favorites);
 
-    const handleToggleFavorite = async (listenerId: number) => {
+    const handleToggleFavorite = async (listenerId: string) => {
         if (!currentUser) return;
         const userRef = db.collection('users').doc(currentUser.uid);
         const isFavorite = favorites.includes(listenerId);

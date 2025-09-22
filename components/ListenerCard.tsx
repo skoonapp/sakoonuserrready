@@ -53,7 +53,9 @@ const ChatBubbleIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onChatClick, variant = 'default', isFavorite, onToggleFavorite }) => {
     const [imageError, setImageError] = useState(false);
-    const listenerImage = LISTENER_IMAGES[listener.id % LISTENER_IMAGES.length];
+    // FIX: The listener ID is a string, which cannot be used with the modulo operator.
+    // To select a consistent image, we convert the string ID to a number by summing its character codes.
+    const listenerImage = LISTENER_IMAGES[listener.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % LISTENER_IMAGES.length];
 
     if (variant === 'compact') {
         return (

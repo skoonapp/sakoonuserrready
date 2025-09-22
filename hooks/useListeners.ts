@@ -14,7 +14,7 @@ const PAGE_SIZE = 10;
 const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.firestore.DocumentData>): Listener => {
     const data = doc.data() || {};
     return {
-        id: data.id || 0, // Assumes a numeric 'id' field exists on the document.
+        id: doc.id,
         name: data.displayName || data.name || 'Unnamed Listener',
         image: data.avatarUrl || data.image || '',
         // The listener is considered online if either 'isOnline' is true or 'appStatus' is "Available".
@@ -27,7 +27,7 @@ const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.
 };
 
 
-export const useListeners = (favoriteListenerIds: number[] = []) => {
+export const useListeners = (favoriteListenerIds: string[] = []) => {
     const [listeners, setListeners] = useState<Listener[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadingMore, setLoadingMore] = useState(false);
@@ -94,7 +94,7 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
             // Append new listeners and re-sort the entire list
             setListeners(prevListeners => {
                 const combined = [...prevListeners, ...newListeners];
-                const unique = Array.from(new Map<number, Listener>(combined.map(l => [l.id, l])).values());
+                const unique = Array.from(new Map<string, Listener>(combined.map(l => [l.id, l])).values());
                 return sortListeners(unique);
             });
 

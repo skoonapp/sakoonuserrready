@@ -1,4 +1,4 @@
-
+import type { Plan as PlanType } from './types';
 
 export type ActiveView = 'home' | 'calls' | 'chats' | 'profile';
 
@@ -21,7 +21,7 @@ export interface User {
   city?: string;
   role?: 'admin' | 'listener';
   listenerId?: string;
-  favoriteListeners?: number[];
+  favoriteListeners?: string[];
   tokens?: number; // Replaces tokenBalance
   activePlans?: ActivePlan[]; // Replaces purchasedPlans subcollection
   freeMessagesRemaining?: number;
@@ -30,7 +30,7 @@ export interface User {
 }
 
 export interface Listener {
-  id: number;
+  id: string;
   name: string;
   image: string;
   online: boolean;
