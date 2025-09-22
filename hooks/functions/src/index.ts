@@ -5,3 +5,4 @@ export { createCashfreeOrder, cashfreeWebhook } from './user/payment';
 export { generateZegoToken } from './user/callRequest';
 export { useFreeMessage } from './user/chatRequest';
 export { finalizeCallSession, finalizeChatSession } from './user/sessions';
+export { updateMyProfile } from './user/users';

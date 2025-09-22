@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import type { User } from '../types';
-import { db } from '../utils/firebase';
+import { functions } from '../utils/firebase';
 
 interface WelcomeModalProps {
   user: User;
-  onClose: () => void;
   onShowTerms: () => void;
   onShowPrivacyPolicy: () => void;
 }
@@ -29,7 +28,7 @@ const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms, onShowPrivacyPolicy }) => {
+const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPrivacyPolicy }) => {
   const [name, setName] = useState(user.name || '');
   const [city, setCity] = useState('');
   const [mobile, setMobile] = useState('');
@@ -62,21 +61,22 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onClose, onShowTerms,
     setError('');
 
     try {
-      const updateData: { name: string; city: string; hasSeenWelcome: boolean; mobile?: string } = {
+      const updateData: { name: string; city: string; mobile?: string } = {
         name: name.trim(),
         city: city.trim(),
-        hasSeenWelcome: true,
       };
 
       if (showMobileInput) {
-        updateData.mobile = `+91${mobile.trim()}`;
+        updateData.mobile = mobile.trim();
       }
       
-      await db.collection('users').doc(user.uid).update(updateData);
-      onClose();
-    } catch (err) {
+      const updateProfile = functions.httpsCallable('updateMyProfile');
+      await updateProfile(updateData);
+      // Success! The modal will disappear automatically because the onSnapshot
+      // listener in App.tsx will detect the 'hasSeenWelcome' change.
+    } catch (err: any) {
       console.error("Error updating user profile:", err);
-      setError("आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।");
+      setError(err.message || "आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।");
     } finally {
       setLoading(false);
     }

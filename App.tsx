@@ -60,14 +60,6 @@ const App: React.FC = () => {
         };
     }, []);
     
-    // This is called when the welcome form is submitted.
-    const handleOnboardingComplete = useCallback(async () => {
-        if (user) {
-            // This update will trigger a re-render from the onSnapshot listener,
-            // which will then cause the app to proceed to the AppShell.
-            await db.collection('users').doc(user.uid).update({ hasSeenWelcome: true });
-        }
-    }, [user]);
 
     // --- Render Logic ---
     if (isInitializing) {
@@ -86,7 +78,6 @@ const App: React.FC = () => {
                  <Suspense fallback={<SplashScreen />}>
                     <WelcomeModal 
                         user={user} 
-                        onClose={handleOnboardingComplete} 
                         onShowTerms={() => setShowPolicy('terms')}
                         onShowPrivacyPolicy={() => setShowPolicy('privacy')}
                     />
