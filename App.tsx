@@ -31,30 +31,58 @@ const App: React.FC = () => {
     // Auth state and user data listener
     useEffect(() => {
         let unsubscribeUser: () => void = () => {};
-        const unsubscribeAuth = auth.onAuthStateChanged(firebaseUser => {
-            unsubscribeUser();
+
+        const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
+            unsubscribeUser(); // Unsubscribe from previous user's listener
             if (firebaseUser) {
                 const userDocRef = db.collection('users').doc(firebaseUser.uid);
-                unsubscribeUser = userDocRef.onSnapshot(doc => {
-                    if (doc.exists) {
-                        setUser(doc.data() as User);
-                    } else {
-                        // Create a new user document if it doesn't exist
-                        const newUser: User = { uid: firebaseUser.uid, name: firebaseUser.displayName || 'New User', email: firebaseUser.email, mobile: firebaseUser.phoneNumber || '', favoriteListeners: [], tokens: 0, activePlans: [], freeMessagesRemaining: FREE_MESSAGES_ON_SIGNUP, hasSeenWelcome: false };
-                        userDocRef.set(newUser, { merge: true });
-                        setUser(newUser);
+                
+                try {
+                    // First, check if the user document exists.
+                    const doc = await userDocRef.get();
+                    
+                    if (!doc.exists) {
+                        // If it doesn't exist, create it. Await this operation.
+                        const newUser: User = {
+                            uid: firebaseUser.uid,
+                            name: firebaseUser.displayName || 'New User',
+                            email: firebaseUser.email,
+                            mobile: firebaseUser.phoneNumber || '',
+                            favoriteListeners: [],
+                            tokens: 0,
+                            activePlans: [],
+                            freeMessagesRemaining: FREE_MESSAGES_ON_SIGNUP,
+                            hasSeenWelcome: false,
+                        };
+                        await userDocRef.set(newUser);
                     }
-                    setIsInitializing(false);
-                }, error => {
-                    console.error("Error fetching user document:", error);
+                    
+                    // Now that we're sure the document exists, attach the realtime listener.
+                    unsubscribeUser = userDocRef.onSnapshot(
+                        (snapshot) => {
+                            if (snapshot.exists) {
+                                setUser(snapshot.data() as User);
+                            }
+                            setIsInitializing(false);
+                        },
+                        (error) => {
+                            console.error("Error fetching user document with onSnapshot:", error);
+                            setUser(null);
+                            setIsInitializing(false);
+                        }
+                    );
+                } catch (error) {
+                    console.error("Error getting or creating user document:", error);
                     setUser(null);
                     setIsInitializing(false);
-                });
+                }
+
             } else {
                 setUser(null);
                 setIsInitializing(false);
             }
         });
+        
         return () => {
             unsubscribeAuth();
             unsubscribeUser();

@@ -41,7 +41,10 @@ export const updateMyProfile = functions
     }
 
     try {
-      await userRef.update(updateData);
+      // FIX: Use .set with {merge: true} instead of .update().
+      // This is an idempotent operation that will create the document if it's missing
+      // (due to a race condition) or update it if it exists, preventing errors.
+      await userRef.set(updateData, { merge: true });
 
       functions.logger.info(`Profile updated for user: ${context.auth.uid}`);
       
