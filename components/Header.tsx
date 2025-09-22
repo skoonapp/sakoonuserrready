@@ -1,8 +1,12 @@
 import React from 'react';
 import type { useWallet } from '../hooks/useWallet';
+import type { ActivePlan } from '../types';
 
 interface HeaderProps {
-  wallet: ReturnType<typeof useWallet>;
+  wallet: {
+    tokens: number;
+    activePlans: ActivePlan[];
+  };
 }
 
 // --- Icons ---

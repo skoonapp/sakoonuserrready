@@ -2,13 +2,11 @@ import React from 'react';
 import PlanCard from './PlanCard';
 import { CALL_PLANS, CHAT_PLANS } from '../constants';
 import type { User, Plan as PlanType } from '../types';
-import { useWallet } from '../hooks/useWallet';
 import HomeHistory from './HomeHistory';
 
 
 interface PlansViewProps {
   currentUser: User;
-  wallet: ReturnType<typeof useWallet>;
   onPurchase: (plan: PlanType | { tokens: number; price: number }) => void;
   loadingPlan: string | null;
 }
@@ -43,7 +41,7 @@ const PadlockIcon: React.FC<{ className?: string }> = ({ className }) => (
 // --- End Icons ---
 
 
-const PlansView: React.FC<PlansViewProps> = ({ currentUser, wallet, onPurchase, loadingPlan }) => {
+const PlansView: React.FC<PlansViewProps> = ({ currentUser, onPurchase, loadingPlan }) => {
   const tokenOptions = [
     { tokens: 10, price: 50 },
     { tokens: 20, price: 99, discount: 1 },

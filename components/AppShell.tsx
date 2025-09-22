@@ -216,14 +216,16 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const handleLogout = useCallback(() => auth.signOut(), []);
     
     const handleStartSession = useCallback(async (type: 'call' | 'chat', listener: Listener) => {
+        if (!user) return;
+        
         // --- CHAT SESSION LOGIC ---
         if (type === 'chat') {
-            if (user && (user.freeMessagesRemaining || 0) > 0) {
+            if ((user.freeMessagesRemaining || 0) > 0) {
                 setActiveChatSession({ type: 'chat', listener, plan: { duration: 'Free Trial', price: 0 }, sessionDurationSeconds: 3 * 3600, associatedPlanId: `free_trial_${user.uid}`, isTokenSession: false, isFreeTrial: true });
                 return;
             }
             
-            const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
+            const activePlans = (user.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
             const dtPlan = activePlans.find(p => p.type === 'chat' && (p.messages || 0) > 0);
     
             if (dtPlan) {
@@ -231,7 +233,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
             } else {
                 // Token check for chat
-                const canUseTokens = (wallet.tokens || 0) >= 0.5;
+                const canUseTokens = (user.tokens || 0) >= 0.5;
                 if (canUseTokens) {
                     const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
                     setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
@@ -263,7 +265,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             }
     
             // --- Call plan logic (runs only if permission is granted) ---
-            const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
+            const activePlans = (user.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
             const dtPlan = activePlans.find(p => p.type === 'call' && (p.minutes || 0) > 0);
     
             if (dtPlan) {
@@ -272,10 +274,10 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
             } else {
                 // Token check for call
-                const canUseTokens = (wallet.tokens || 0) >= 2;
+                const canUseTokens = (user.tokens || 0) >= 2;
                 if (canUseTokens) {
                     const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
-                    const maxMinutes = Math.floor((wallet.tokens || 0) / 2); // 2 MT per minute
+                    const maxMinutes = Math.floor((user.tokens || 0) / 2); // 2 MT per minute
                     const durationSeconds = maxMinutes * 60;
                     setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
                 } else {
@@ -283,7 +285,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 }
             }
         }
-    }, [wallet, user, showNotification]);
+    }, [user, showNotification]);
     
     const handleCallSessionEnd = useCallback(async (success: boolean, consumedSeconds: number) => {
         if (user && activeCallSession) {
@@ -421,7 +423,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
 
     const renderViewByIndex = useCallback((index: number) => {
         switch (index) {
-            case 0: return <HomeView currentUser={user} wallet={wallet} onPurchase={handlePurchase} loadingPlan={loadingPlan} />;
+            case 0: return <HomeView currentUser={user} onPurchase={handlePurchase} loadingPlan={loadingPlan} />;
             case 1: return <CallsView onStartSession={handleStartSession} currentUser={user} showNotification={showNotification} />;
             case 2: return <ChatsView onStartSession={handleStartSession} currentUser={user} showNotification={showNotification} />;
             case 3: return <ProfileView 
@@ -437,9 +439,8 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         />;
             default: return null;
         }
-    }, [user, wallet, loadingPlan, handlePurchase, handleStartSession, deferredInstallPrompt, handleInstallClick, handleLogout, isDarkMode, toggleDarkMode, showNotification]);
+    }, [user, loadingPlan, handlePurchase, handleStartSession, deferredInstallPrompt, handleInstallClick, handleLogout, isDarkMode, toggleDarkMode, showNotification]);
 
-    if (wallet.loading) return <SplashScreen />;
     if (activeCallSession) return <CallUI session={activeCallSession} user={user} onLeave={handleCallSessionEnd} />;
     if (activeChatSession) return <ChatUI session={activeChatSession} user={user} onLeave={handleChatSessionEnd} />;
 
