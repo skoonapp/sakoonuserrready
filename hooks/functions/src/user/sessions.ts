@@ -61,7 +61,7 @@ export const finalizeChatSession = functions.region("asia-south1").https.onCall(
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
     }
-    const { consumedMessages, listenerName } = data; // Assuming only MT for now for simplicity
+    const { consumedMessages, associatedPlanId, isTokenSession, listenerName } = data;
     const userId = context.auth.uid;
     
     const userRef = db.collection("users").doc(userId);
@@ -69,11 +69,24 @@ export const finalizeChatSession = functions.region("asia-south1").https.onCall(
     if (!userDoc.exists) throw new functions.https.HttpsError("not-found", "User not found.");
 
     const userData = userDoc.data()!;
-    const tokensToDeduct = Math.ceil(consumedMessages / 2) * CHAT_COST_PER_TWO_MESSAGES_MT;
-
-    if (userData.tokens >= tokensToDeduct) {
-        await userRef.update({ tokens: admin.firestore.FieldValue.increment(-tokensToDeduct) });
-        await addUsageHistory(userId, 'Chat', consumedMessages, `${tokensToDeduct} MT`, `${userData.tokens - tokensToDeduct} MT Left`, listenerName);
+    
+    if (isTokenSession) {
+        const tokensToDeduct = Math.ceil(consumedMessages / 2) * CHAT_COST_PER_TWO_MESSAGES_MT;
+        if (userData.tokens >= tokensToDeduct) {
+            await userRef.update({ tokens: admin.firestore.FieldValue.increment(-tokensToDeduct) });
+            await addUsageHistory(userId, 'Chat', consumedMessages, `${tokensToDeduct} MT`, `${userData.tokens - tokensToDeduct} MT Left`, listenerName);
+        }
+    } else {
+        const activePlans = userData.activePlans || [];
+        const planIndex = activePlans.findIndex((p: any) => p.id === associatedPlanId);
+        if (planIndex > -1) {
+            const plan = activePlans[planIndex];
+            plan.messages -= consumedMessages;
+            if (plan.messages < 0) plan.messages = 0;
+            activePlans[planIndex] = plan;
+            await userRef.update({ activePlans });
+            await addUsageHistory(userId, 'Chat', consumedMessages, 'DT Plan', `${plan.messages} Msgs Left`, listenerName);
+        }
     }
 
     return { success: true };

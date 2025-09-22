@@ -313,6 +313,8 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                     const finalizeChat = functions.httpsCallable('finalizeChatSession');
                     await finalizeChat({
                         consumedMessages,
+                        associatedPlanId: activeChatSession.associatedPlanId,
+                        isTokenSession: activeChatSession.isTokenSession,
                         listenerName: activeChatSession.listener.name
                     });
                 } catch(error) {
