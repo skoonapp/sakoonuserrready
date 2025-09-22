@@ -31,11 +31,17 @@ const verifyWebhookSignature = (payload: string, signature: string, timestamp: s
 
 // Enhanced purchase processing with better error handling
 const processPurchase = async (paymentNotes: PaymentNotes, paymentId: string, eventData: any) => {
-  const { userId, planType, planDetails } = paymentNotes;
+  const { userId, planType, planDetails: rawPlanDetails } = paymentNotes;
 
   if (!userId) {
     throw new functions.https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
   }
+
+  // FIX: Robustly handle planDetails which might be a string (from older functions) or an object.
+  const planDetails: PlanDetails | TokenPlanDetails = typeof rawPlanDetails === 'string'
+    ? JSON.parse(rawPlanDetails)
+    : rawPlanDetails;
+
 
   const paymentRef = db.collection("processedPayments").doc(paymentId);
   const userRef = db.collection("users").doc(userId);
@@ -231,10 +237,11 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   }
 });
 
-// FIX: Switched to using `functions.https.Request` and `functions.Response` types.
-// The previously used explicit Express types were causing compilation errors. The official
-// Firebase Functions types are correctly recognized and include necessary properties like `rawBody`.
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
+// FIX: The explicit types for `req` and `res` were causing type resolution errors.
+// Removing them allows TypeScript to correctly infer the types from the `onRequest`
+// function signature, which are `functions.https.Request` (for `req`) and `express.Response` (for `res`).
+// This resolves errors where methods like `.method`, `.status()`, and `.set()` were not found.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req, res) => {
   // Handle preflight OPTIONS requests
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Origin', '*');

@@ -31,6 +31,6 @@ export interface TokenPlanDetails {
 export interface PaymentNotes {
   userId: string;
   planType: "mt" | "dt";
-  // FIX: Changed from string to a direct object to simplify data handling.
-  planDetails: PlanDetails | TokenPlanDetails;
+  // FIX: Allow planDetails to be a string or object for backward compatibility
+  planDetails: string | PlanDetails | TokenPlanDetails;
 }
