@@ -39,7 +39,7 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
             const aIsFav = favoriteListenerIds.includes(a.id);
             const bIsFav = favoriteListenerIds.includes(b.id);
             if (aIsFav !== bIsFav) return aIsFav ? -1 : 1; // Favorites first
-            if (a.online !== b.online) return a.online ? -1 : 1; // Online first
+            // The line that sorted by online status has been removed to mix online/offline listeners.
             return b.rating - a.rating; // Then by rating
         });
     }, [favoriteListenerIds]);
@@ -48,14 +48,14 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
     useEffect(() => {
         setLoading(true);
 
-        // FIX: Changed query to order by `isOnline` which exists in the Firestore documents.
+        // FIX: Removed ordering by `isOnline` at the database level. 
+        // This was too restrictive as it would exclude listeners marked online via `appStatus`.
+        // The client-side `sortListeners` function correctly handles sorting by online status after fetching.
         const query = db.collection('listeners')
-            .orderBy('isOnline', 'desc')
-            .orderBy('rating', 'desc') // Secondary sort for stable ordering
+            .orderBy('rating', 'desc') // Order by a stable field for consistent pagination
             .limit(PAGE_SIZE);
 
         const unsubscribe = query.onSnapshot(snapshot => {
-            // FIX: Map and transform each document to match the app's expected Listener type.
             const firstPageListeners = snapshot.docs.map(transformListenerDoc);
             
             setListeners(sortListeners(firstPageListeners));
@@ -79,15 +79,13 @@ export const useListeners = (favoriteListenerIds: number[] = []) => {
         setLoadingMore(true);
 
         try {
-            // FIX: Changed query to order by `isOnline`.
+            // FIX: Removed ordering by `isOnline` for the pagination query as well.
             const query = db.collection('listeners')
-                .orderBy('isOnline', 'desc')
                 .orderBy('rating', 'desc')
                 .startAfter(lastVisible)
                 .limit(PAGE_SIZE);
             
             const snapshot = await query.get();
-            // FIX: Transform new documents as well.
             const newListeners = snapshot.docs.map(transformListenerDoc);
 
             setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
