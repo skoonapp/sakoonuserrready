@@ -25,6 +25,7 @@ export const QUICK_REPLIES = [
     "Thank you for sharing. I'm here for you.",
     "Is there anything else I can help you with?",
 ];
+export const FREE_MESSAGES_ON_SIGNUP = 5;
 
 // NEW: Updated Plan structure for the new paymentService
 export const CALL_PLANS: Plan[] = [

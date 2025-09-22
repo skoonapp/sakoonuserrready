@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { auth, db } from './utils/firebase';
 import type { User } from './types';
+import { FREE_MESSAGES_ON_SIGNUP } from './constants';
 
 // Import Core Components
 import SplashScreen from './components/SplashScreen';
@@ -39,7 +40,7 @@ const App: React.FC = () => {
                         setUser(doc.data() as User);
                     } else {
                         // Create a new user document if it doesn't exist
-                        const newUser: User = { uid: firebaseUser.uid, name: firebaseUser.displayName || 'New User', email: firebaseUser.email, mobile: firebaseUser.phoneNumber || '', favoriteListeners: [], tokens: 0, activePlans: [], freeMessagesRemaining: 5, hasSeenWelcome: false };
+                        const newUser: User = { uid: firebaseUser.uid, name: firebaseUser.displayName || 'New User', email: firebaseUser.email, mobile: firebaseUser.phoneNumber || '', favoriteListeners: [], tokens: 0, activePlans: [], freeMessagesRemaining: FREE_MESSAGES_ON_SIGNUP, hasSeenWelcome: false };
                         userDocRef.set(newUser, { merge: true });
                         setUser(newUser);
                     }

@@ -4,8 +4,10 @@ import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
 import { Buffer } from "buffer";
+// Explicitly import express types to resolve type conflicts.
+import type { Request, Response } from "express";
 import { db, cashfree, CASHFREE_WEBHOOK_SECRET } from "../config";
-import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./types";
+import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./constants";
 
 const corsHandler = cors({ origin: true });
 
@@ -234,10 +236,11 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   }
 });
 
-// FIX: Explicitly typed the 'req' and 'res' parameters to ensure TypeScript uses the correct types from firebase-functions,
-// which include properties like `method`, `headers`, `body`, and methods like `status()` and `send()`.
-// This resolves all errors related to unrecognized properties on the request and response objects.
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
+// FIX: Explicitly typed the 'req' and 'res' parameters using types from Express.
+// This resolves TypeScript errors when the environment has conflicting type definitions.
+// The `Request` type is augmented with `{ rawBody?: Buffer }` to account for the property
+// added by Firebase Functions.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: Request & { rawBody?: Buffer }, res: Response) => {
   // Handle preflight OPTIONS requests
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Origin', '*');
