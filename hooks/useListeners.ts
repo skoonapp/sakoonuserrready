@@ -67,11 +67,15 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
     // Effect for the initial Firestore query to get ALL active listeners
     useEffect(() => {
         setLoading(true);
-        // Fetch all active listeners at once.
-        const query = db.collection('listeners').where('status', '==', 'active');
+        // FIX: Removed the .where() clause to avoid potential missing index errors.
+        // We will fetch all listeners and filter for 'active' status on the client.
+        const query = db.collection('listeners');
 
         const unsubscribe = query.onSnapshot(snapshot => {
-            const allListeners = snapshot.docs.map(transformListenerDoc);
+            // FIX: Filter for active listeners on the client side to bypass index requirements.
+            const activeDocs = snapshot.docs.filter(doc => doc.data()?.status === 'active');
+            const allListeners = activeDocs.map(transformListenerDoc);
+            
             setFirestoreListeners(allListeners);
         }, error => {
             console.error("Error with real-time listener fetch:", error);
