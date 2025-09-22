@@ -3,8 +3,6 @@ import { db, rtdb } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
 import type { Listener } from '../types';
 
-const PAGE_SIZE = 10;
-
 // This function now only transforms Firestore data, excluding the online status which comes from RTDB.
 const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.firestore.DocumentData>): Omit<Listener, 'online'> => {
     const data = doc.data() || {};
@@ -31,17 +29,21 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
 
     // Loading and pagination state
     const [loading, setLoading] = useState(true);
-    const [loadingMore, setLoadingMore] = useState(false);
-    const [lastVisible, setLastVisible] = useState<firebase.firestore.QueryDocumentSnapshot<firebase.firestore.DocumentData> | null>(null);
-    const [hasMore, setHasMore] = useState(true);
-
-    const sortListeners = useCallback((list: Listener[]): Listener[] => {
-        return [...list].sort((a, b) => {
+    
+    const sortAndSetListeners = useCallback((list: Listener[]): void => {
+        const sorted = [...list].sort((a, b) => {
+            // 1. Online status (true comes first)
+            if (a.online !== b.online) return a.online ? -1 : 1;
+            
+            // 2. Favorites (true comes first)
             const aIsFav = favoriteListenerIds.includes(a.id);
             const bIsFav = favoriteListenerIds.includes(b.id);
-            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1; // Favorites first
-            return b.rating - a.rating; // Then by rating
+            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
+
+            // 3. Rating (higher comes first)
+            return b.rating - a.rating;
         });
+        setListeners(sorted);
     }, [favoriteListenerIds]);
     
     // --- DATA FETCHING EFFECTS ---
@@ -56,22 +58,21 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
                 newOnlineStatuses[uid] = statuses[uid]?.isOnline === true;
             });
             setOnlineStatuses(newOnlineStatuses);
+            setLoading(false); // Assume loading is done after first status check
         };
         statusRef.on('value', onStatusChange);
         return () => statusRef.off('value', onStatusChange);
     }, []);
 
-    // Effect for the initial Firestore query
+    // Effect for the initial Firestore query to get ALL active listeners
     useEffect(() => {
         setLoading(true);
-        const query = db.collection('listeners').orderBy('rating', 'desc').limit(PAGE_SIZE);
+        // Fetch all active listeners at once.
+        const query = db.collection('listeners').where('status', '==', 'active');
 
         const unsubscribe = query.onSnapshot(snapshot => {
-            const firstPageListeners = snapshot.docs.map(transformListenerDoc);
-            setFirestoreListeners(firstPageListeners);
-            setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
-            setHasMore(firstPageListeners.length === PAGE_SIZE);
-            setLoading(false);
+            const allListeners = snapshot.docs.map(transformListenerDoc);
+            setFirestoreListeners(allListeners);
         }, error => {
             console.error("Error with real-time listener fetch:", error);
             setLoading(false);
@@ -88,36 +89,9 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
             ...l,
             online: onlineStatuses[l.id] || false,
         }));
-        setListeners(sortListeners(combined));
-    }, [firestoreListeners, onlineStatuses, sortListeners]);
+        sortAndSetListeners(combined);
+    }, [firestoreListeners, onlineStatuses, sortAndSetListeners]);
 
-    // --- PAGINATION ---
 
-    const loadMoreListeners = useCallback(async () => {
-        if (!hasMore || loadingMore || !lastVisible) return;
-        setLoadingMore(true);
-
-        try {
-            const query = db.collection('listeners').orderBy('rating', 'desc').startAfter(lastVisible).limit(PAGE_SIZE);
-            const snapshot = await query.get();
-            const newListeners = snapshot.docs.map(transformListenerDoc);
-
-            setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
-            setHasMore(newListeners.length === PAGE_SIZE);
-            
-            // Append new listeners to the existing Firestore data
-            setFirestoreListeners(prevListeners => {
-                const combined = [...prevListeners, ...newListeners];
-                // Ensure uniqueness in case of overlaps
-                return Array.from(new Map(combined.map(l => [l.id, l])).values());
-            });
-
-        } catch (error) {
-            console.error("Error loading more listeners:", error);
-        } finally {
-            setLoadingMore(false);
-        }
-    }, [hasMore, loadingMore, lastVisible]);
-
-    return { listeners, loading, loadingMore, hasMore, loadMoreListeners };
+    return { listeners, loading, loadingMore: false, hasMore: false, loadMoreListeners: () => {} };
 };
