@@ -237,11 +237,9 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   }
 });
 
-// FIX: The explicit types for `req` and `res` were causing type resolution errors.
-// Removing them allows TypeScript to correctly infer the types from the `onRequest`
-// function signature, which are `functions.https.Request` (for `req`) and `express.Response` (for `res`).
-// This resolves errors where methods like `.method`, `.status()`, and `.set()` were not found.
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req, res) => {
+// FIX: Explicitly typed `req` and `res` parameters to resolve type inference issues,
+// ensuring the correct properties from Express are available on these objects.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
   // Handle preflight OPTIONS requests
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Origin', '*');

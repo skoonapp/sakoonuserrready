@@ -73,9 +73,9 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     // --- Navigation & Swipe State ---
     const [activeIndex, setActiveIndex] = useState(1);
     const [touchStartX, setTouchStartX] = useState<number | null>(null);
-    const [touchStartY, setTouchStartY] = useState<number | null>(null); // For vertical vs horizontal detection
-    const [touchDeltaX, setTouchDeltaX] = useState(0);
-    const [isSwiping, setIsSwiping] = useState<boolean | null>(null); // null: undecided, true: horizontal, false: vertical
+    const [touchStartY, setTouchStartY] = useState<number | null>(null);
+    const [isSwiping, setIsSwiping] = useState<boolean | null>(null);
+    const touchDeltaXRef = useRef(0);
     const viewsContainerRef = useRef<HTMLDivElement>(null);
 
 
@@ -368,37 +368,35 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         setTouchStartX(e.targetTouches[0].clientX);
         setTouchStartY(e.targetTouches[0].clientY);
         setIsSwiping(null);
-        setTouchDeltaX(0);
+        touchDeltaXRef.current = 0;
         if (viewsContainerRef.current) {
             viewsContainerRef.current.style.transition = 'none';
         }
     }, [activeCallSession, activeChatSession, showAICompanion, showPolicy, showRechargeModal, paymentSessionId]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (touchStartX === null || touchStartY === null) return;
+        if (touchStartX === null || touchStartY === null || !viewsContainerRef.current) return;
 
         const currentX = e.targetTouches[0].clientX;
         const currentY = e.targetTouches[0].clientY;
         const deltaX = currentX - touchStartX;
         const deltaY = currentY - touchStartY;
         
-        let currentIsSwiping = isSwiping;
-
-        if (currentIsSwiping === null) {
-            // Decide direction based on the first significant movement
+        if (isSwiping === null) {
             if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                currentIsSwiping = Math.abs(deltaX) > Math.abs(deltaY);
-                setIsSwiping(currentIsSwiping);
+                setIsSwiping(Math.abs(deltaX) > Math.abs(deltaY));
             }
         }
         
-        if (currentIsSwiping === true) { // If it's a horizontal swipe
+        if (isSwiping === true) {
             e.preventDefault();
+            let resistanceDelta = deltaX;
             if ((activeIndex === 0 && deltaX > 0) || (activeIndex === views.length - 1 && deltaX < 0)) {
-                setTouchDeltaX(deltaX / 4); // Resistance at edges
-            } else {
-                setTouchDeltaX(deltaX);
+                resistanceDelta = deltaX / 4;
             }
+            touchDeltaXRef.current = resistanceDelta;
+            const baseTranslatePercent = -activeIndex * 100;
+            viewsContainerRef.current.style.transform = `translateX(calc(${baseTranslatePercent}% + ${resistanceDelta}px))`;
         }
     }, [touchStartX, touchStartY, activeIndex, isSwiping, views.length]);
 
@@ -407,20 +405,26 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             viewsContainerRef.current.style.transition = 'transform 0.3s ease-in-out';
         }
 
-        if (isSwiping) { // Only process the end of a horizontal swipe
-            const swipeThreshold = 50;
-            if (touchDeltaX > swipeThreshold && activeIndex > 0) {
+        if (isSwiping) {
+            const swipeThreshold = viewsContainerRef.current ? viewsContainerRef.current.clientWidth / 4 : 50;
+            const finalDeltaX = touchDeltaXRef.current;
+
+            if (finalDeltaX > swipeThreshold && activeIndex > 0) {
                 navigateTo(activeIndex - 1);
-            } else if (touchDeltaX < -swipeThreshold && activeIndex < views.length - 1) {
+            } else if (finalDeltaX < -swipeThreshold && activeIndex < views.length - 1) {
                 navigateTo(activeIndex + 1);
+            } else {
+                if (viewsContainerRef.current) {
+                    viewsContainerRef.current.style.transform = `translateX(-${activeIndex * 100}%)`;
+                }
             }
         }
         
         setTouchStartX(null);
         setTouchStartY(null);
-        setTouchDeltaX(0);
         setIsSwiping(null);
-    }, [isSwiping, touchDeltaX, activeIndex, navigateTo, views.length]);
+        touchDeltaXRef.current = 0;
+    }, [isSwiping, activeIndex, navigateTo, views.length]);
 
 
     const renderViewByIndex = useCallback((index: number) => {
@@ -490,7 +494,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         ref={viewsContainerRef}
                         className="flex h-full transition-transform duration-300 ease-in-out"
                         style={{ 
-                            transform: `translateX(calc(-${activeIndex * 100}% + ${touchDeltaX}px))`
+                            transform: `translateX(-${activeIndex * 100}%)`
                         }}
                     >
                         {views.map((viewName, index) => (

@@ -45,4 +45,4 @@ const Notification: React.FC<NotificationProps> = ({ title, message, onClose }) 
   );
 };
 
-export default Notification;
+export default React.memo(Notification);
