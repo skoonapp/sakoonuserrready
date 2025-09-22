@@ -4,8 +4,8 @@ import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
 import { Buffer } from "buffer";
-// Explicitly import express types to resolve type conflicts.
-import type { Request, Response } from "express";
+// NOTE: Removed direct import of Express types to use the ones provided by firebase-functions,
+// which resolves type conflicts in this environment.
 import { db, cashfree, CASHFREE_WEBHOOK_SECRET } from "../config";
 import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./constants";
 
@@ -47,12 +47,7 @@ const processPurchase = async (paymentNotes: PaymentNotes, paymentId: string, ev
       return;
     }
 
-    let details;
-    try {
-      details = JSON.parse(planDetails);
-    } catch (error) {
-      throw new Error(`Invalid plan details JSON: ${planDetails}`);
-    }
+    const details = planDetails;
 
     if (planType === "mt") {
       const tokenDetails = details as TokenPlanDetails;
@@ -95,7 +90,7 @@ const processPurchase = async (paymentNotes: PaymentNotes, paymentId: string, ev
       timestamp: Date.now(),
       amount: details.price,
       planType: planType.toUpperCase(),
-      planDetails: planType === "mt" ? `${details.tokens} MT` : details.name,
+      planDetails: planType === "mt" ? `${(details as TokenPlanDetails).tokens} MT` : (details as PlanDetails).name,
       status: "Success",
       paymentId: paymentId,
       orderId: eventData.data?.order?.order_id,
@@ -162,7 +157,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
       customer_id: context.auth.uid,
       customer_name: userData.name || "SakoonApp User",
       customer_email: userData.email || "user@example.com",
-      customer_phone: userData.mobile || "9999999999",
+      customer_phone: (userData.mobile || "9999999999").replace('+91', ''),
     },
     order_meta: {
       return_url: `https://sakoonapp-9574c.web.app/return?order_id={order_id}`,
@@ -170,7 +165,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
     order_note: JSON.stringify({ 
       userId: context.auth.uid, 
       planType, 
-      planDetails: JSON.stringify(planDetails) 
+      planDetails: planDetails 
     }),
   };
 
@@ -236,11 +231,10 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   }
 });
 
-// FIX: Explicitly typed the 'req' and 'res' parameters using types from Express.
-// This resolves TypeScript errors when the environment has conflicting type definitions.
-// The `Request` type is augmented with `{ rawBody?: Buffer }` to account for the property
-// added by Firebase Functions.
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: Request & { rawBody?: Buffer }, res: Response) => {
+// FIX: Switched to using `functions.https.Request` and `functions.Response` types.
+// The previously used explicit Express types were causing compilation errors. The official
+// Firebase Functions types are correctly recognized and include necessary properties like `rawBody`.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
   // Handle preflight OPTIONS requests
   if (req.method === 'OPTIONS') {
     res.set('Access-Control-Allow-Origin', '*');

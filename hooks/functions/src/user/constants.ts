@@ -31,5 +31,6 @@ export interface TokenPlanDetails {
 export interface PaymentNotes {
   userId: string;
   planType: "mt" | "dt";
-  planDetails: string; // यह एक stringified JSON होगा
+  // FIX: Changed from string to a direct object to simplify data handling.
+  planDetails: PlanDetails | TokenPlanDetails;
 }

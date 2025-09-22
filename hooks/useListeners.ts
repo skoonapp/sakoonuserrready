@@ -25,16 +25,14 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
     useEffect(() => {
         setLoading(true);
 
-        // Step 1: Get all listener profiles from Firestore.
-        const listenersQuery = db.collection('listeners');
+        // Step 1: Query for 'active' listener profiles directly from Firestore.
+        // This is more efficient and works correctly with security rules.
+        const listenersQuery = db.collection('listeners').where('status', '==', 'active');
         
-        // This outer listener will react to changes in the listeners collection (e.g., a new listener is added).
+        // This outer listener will react to changes in the active listeners collection.
         const unsubscribeFirestore = listenersQuery.onSnapshot(
             (querySnapshot) => {
-                // Filter for 'active' listeners on the client-side. This avoids needing a Firestore index.
-                const activeListenersProfiles = querySnapshot.docs
-                    .filter(doc => doc.data()?.status === 'active')
-                    .map(transformListenerDoc);
+                const activeListenersProfiles = querySnapshot.docs.map(transformListenerDoc);
                 
                 // Step 2: Now that we have the profiles of active listeners, listen for their online status from RTDB.
                 const statusRef = rtdb.ref('status');

@@ -11,14 +11,14 @@ export const db = admin.firestore();
 // FIX: Export admin module for use in other functions.
 export { admin };
 
-// FIX: Initialize the Cashfree v4 SDK by creating an instance with the correct property names.
-// The previous property names (env, clientId, clientSecret) were incorrect.
+// FIX: Initialize the Cashfree v4+ SDK by creating an instance with the correct property names.
+// This resolves the 500 Internal Server error caused by a mismatch between the SDK version and initialization code.
 const cashfree = new Cashfree({
-    // Hardcoding to SANDBOX for testing purposes, as requested.
-    xEnvironment: "SANDBOX",
+    xEnvironment: functions.config().cashfree.environment === 'PRODUCTION' ? Cashfree.Environment.PRODUCTION : Cashfree.Environment.SANDBOX,
     xClientId: functions.config().cashfree.client_id,
     xClientSecret: functions.config().cashfree.client_secret,
-} as any);
+});
+
 
 // Export the configured instance for use in other functions.
 export { cashfree };
