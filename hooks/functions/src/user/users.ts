@@ -35,31 +35,29 @@ export const updateMyProfile = functions
           throw new functions.https.HttpsError("invalid-argument", "Mobile number must be 10 digits.");
       }
       
+      // FIX: Moved mobile uniqueness check OUTSIDE the transaction.
+      // Firestore transactions do not allow collection queries like .where().get().
+      if (mobile && typeof mobile === 'string' && mobile.trim().length === 10) {
+          const formattedMobile = `+91${mobile.trim()}`;
+          const usersWithMobileQuery = db.collection("users").where('mobile', '==', formattedMobile).limit(1);
+          const snapshot = await usersWithMobileQuery.get();
+
+          if (!snapshot.empty) {
+              const existingUser = snapshot.docs[0];
+              if (existingUser.id !== auth.uid) {
+                  functions.logger.warn(`Mobile ${formattedMobile} already registered to user ${existingUser.id}`);
+                  throw new functions.https.HttpsError(
+                      "already-exists",
+                      "This mobile number is already registered. Please sign in with your mobile number to access that account."
+                  );
+              }
+          }
+      }
+      
       const userRef = db.collection("users").doc(auth.uid);
      
-      // Use transaction for all operations
+      // Use transaction for the atomic read/write operation
       const result = await db.runTransaction(async (transaction) => {
-        // Mobile uniqueness check OUTSIDE transaction to avoid conflicts
-        if (mobile && typeof mobile === 'string' && mobile.trim().length === 10) {
-            const formattedMobile = `+91${mobile.trim()}`;
-            
-            // Use regular query, not transaction.get for this check
-            const usersWithMobileQuery = db.collection("users").where('mobile', '==', formattedMobile).limit(1);
-            const snapshot = await usersWithMobileQuery.get();
-
-            if (!snapshot.empty) {
-                const existingUser = snapshot.docs[0];
-                if (existingUser.id !== auth.uid) {
-                    functions.logger.warn(`Mobile ${formattedMobile} already registered to user ${existingUser.id}`);
-                    throw new functions.https.HttpsError(
-                        "already-exists",
-                        "This mobile number is already registered. Please sign in with your mobile number to access that account."
-                    );
-                }
-            }
-        }
-
-        // Now do the actual update in transaction
         const userDoc = await transaction.get(userRef);
         
         const profileData: { [key: string]: any } = {
