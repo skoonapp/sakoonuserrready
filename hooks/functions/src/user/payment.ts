@@ -1,7 +1,8 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Re-introduced explicit { Request, Response } imports from 'express' to resolve type conflicts with firebase-functions.
-import express, { Request, Response } from "express";
+// Using fully qualified 'express.Request' and 'express.Response' to avoid type collision with firebase-functions.
+import express from "express";
 import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
@@ -13,7 +14,7 @@ import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./constants";
 const verifyWebhookSignature = (payload: string, signature: string, timestamp: string): boolean => {
   try {
     const expectedSignature = crypto
-      .createHmac("sha256", getCashfreeWebhookSecret())
+      .createHmac("sha264", getCashfreeWebhookSecret())
       .update(`${timestamp}${payload}`)
       .digest("base64");
     
@@ -244,7 +245,8 @@ webhookApp.use(cors({ origin: true }));
 
 // Define a GET route for health checks and Cashfree endpoint verification.
 // FIX: Added explicit type annotations to resolve ambiguity.
-webhookApp.get("/", (req: Request, res: Response) => {
+// FIX: Use express.Request and express.Response to avoid type conflicts.
+webhookApp.get("/", (req: express.Request, res: express.Response) => {
     res.status(200).send("OK");
 });
 
@@ -254,7 +256,8 @@ webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler.
 // FIX: Added explicit type annotations to resolve ambiguity.
-webhookApp.post("/", async (req: Request, res: Response) => {
+// FIX: Use express.Request and express.Response to avoid type conflicts.
+webhookApp.post("/", async (req: express.Request, res: express.Response) => {
     try {
         // Log incoming webhook for debugging
         functions.logger.info("Webhook received:", {
