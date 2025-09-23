@@ -1,32 +1,65 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-import { Cashfree } from "cashfree-pg";
+// FIX: Import Cashfree and CFEnvironment correctly for v4+ SDK
+import { Cashfree, CFEnvironment } from "cashfree-pg";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
-
-// Export Firestore database instance
 export const db = admin.firestore();
-
-// FIX: Export admin module for use in other functions.
 export { admin };
 
-// FIX: Initialize the Cashfree v4+ SDK by creating an instance with the correct property names.
-// This resolves the 500 Internal Server error caused by a mismatch between the SDK version and initialization code.
-const cashfree = new Cashfree({
-    xEnvironment: functions.config().cashfree.environment === 'PRODUCTION' ? Cashfree.Environment.PRODUCTION : Cashfree.Environment.SANDBOX,
-    xClientId: functions.config().cashfree.client_id,
-    xClientSecret: functions.config().cashfree.client_secret,
-});
+// --- LAZY INITIALIZATION FOR SERVICES ---
 
+let cashfreeInstance: any | null = null;
 
-// Export the configured instance for use in other functions.
-export { cashfree };
+/**
+ * Lazily initializes and returns the Cashfree client instance.
+ * This avoids calling functions.config() at the module's top level and
+ * uses the modern approach for the cashfree-pg SDK.
+ */
+export const getCashfreeClient = () => {
+    // If already initialized, return it.
+    if (cashfreeInstance) {
+        return cashfreeInstance;
+    }
+    
+    // If not initialized, try to initialize it.
+    try {
+        const cfg = functions.config().cashfree;
+        if (!cfg || !cfg.environment || !cfg.client_id || !cfg.client_secret) {
+            throw new Error("Cashfree configuration is missing or incomplete in Firebase function config.");
+        }
 
-// Export secrets from Firebase config for use in other files.
-export const CASHFREE_WEBHOOK_SECRET = functions.config().cashfree.webhook_secret;
-export const ZEGO_APP_ID = parseInt(functions.config().zego.appid, 10);
-export const ZEGO_SERVER_SECRET = functions.config().zego.secret;
+        // The env property for the SDK instance expects CFEnvironment.PRODUCTION or CFEnvironment.SANDBOX
+        const env = cfg.environment.toLowerCase() === 'production' 
+            ? CFEnvironment.PRODUCTION 
+            : CFEnvironment.SANDBOX;
 
-// Gemini AI API Key
-export const GEMINI_API_KEY = functions.config().gemini.apikey;
+        // Initialize Cashfree using the correct approach with CFEnvironment
+        cashfreeInstance = new Cashfree(env, cfg.client_id, cfg.client_secret);
+
+        functions.logger.info("Cashfree SDK instance initialized successfully.");
+        return cashfreeInstance;
+    } catch (e: any) {
+        functions.logger.error("FATAL: Failed to initialize Cashfree SDK.", e);
+        throw new functions.https.HttpsError('internal', `Payment service is not configured: ${e.message}`);
+    }
+};
+
+// --- LAZY GETTERS FOR SECRETS ---
+
+export const getCashfreeWebhookSecret = (): string => {
+    return functions.config().cashfree?.webhook_secret ?? "";
+};
+
+export const getZegoAppId = (): number => {
+    return parseInt(functions.config().zego?.appid ?? "0", 10);
+};
+
+export const getZegoServerSecret = (): string => {
+    return functions.config().zego?.secret ?? "";
+};
+
+export const getGeminiApiKey = (): string => {
+    return functions.config().gemini?.apikey ?? "";
+};

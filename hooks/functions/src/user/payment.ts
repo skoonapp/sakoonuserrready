@@ -1,21 +1,19 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
+// FIX: Removed explicit { Request, Response } imports to resolve type conflicts.
+import express from "express";
 import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
 import { Buffer } from "buffer";
-// NOTE: Removed direct import of Express types to use the ones provided by firebase-functions,
-// which resolves type conflicts in this environment.
-import { db, cashfree, CASHFREE_WEBHOOK_SECRET } from "../config";
+import { db, getCashfreeClient, getCashfreeWebhookSecret } from "../config";
 import { PaymentNotes, PlanDetails, TokenPlanDetails } from "./constants";
-
-const corsHandler = cors({ origin: true });
 
 // Helper function to verify webhook signature
 const verifyWebhookSignature = (payload: string, signature: string, timestamp: string): boolean => {
   try {
     const expectedSignature = crypto
-      .createHmac("sha256", CASHFREE_WEBHOOK_SECRET)
+      .createHmac("sha256", getCashfreeWebhookSecret())
       .update(`${timestamp}${payload}`)
       .digest("base64");
     
@@ -188,27 +186,26 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   });
 
   try {
-    // Check if cashfree is properly initialized
-    if (!cashfree) {
-      functions.logger.error("Cashfree client not initialized");
-      throw new functions.https.HttpsError("internal", "Payment service not available");
-    }
+    const cashfree = getCashfreeClient();
 
     functions.logger.info("Sending request to Cashfree API...");
-    const response = await (cashfree as any).orders.create(orderRequest);
+    // FIX: Use the instance-based `orders.create` method for cashfree-pg v4+
+    const response = await cashfree.orders.create(orderRequest);
     
     // Log successful response (without sensitive data)
     functions.logger.info("Cashfree order created successfully:", {
       orderId: orderRequest.order_id,
       amount: amount,
       userId: context.auth.uid,
-      paymentSessionId: response.data?.payment_session_id ? "present" : "missing",
-      responseKeys: Object.keys(response.data || {})
+      // FIX: The payment_session_id is directly on the response object, not in `data`.
+      paymentSessionId: response.payment_session_id ? "present" : "missing",
+      responseKeys: Object.keys(response || {})
     });
     
     return { 
       success: true, 
-      paymentSessionId: response.data.payment_session_id,
+      // FIX: Access payment_session_id directly from the response
+      paymentSessionId: response.payment_session_id,
       orderId: orderRequest.order_id
     };
   } catch (error: any) {
@@ -222,7 +219,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
       errorStatus: error.status,
       errorResponse: error.response?.data,
       errorStack: error.stack,
-      cashfreeConfigured: !!cashfree
+      cashfreeConfigured: !!getCashfreeClient
     });
 
     // Different error handling based on error type
@@ -237,152 +234,85 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
   }
 });
 
-// FIX: Explicitly typed `req` and `res` parameters to resolve type inference issues,
-// ensuring the correct properties from Express are available on these objects.
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest((req: functions.https.Request, res: functions.Response) => {
-  // Handle preflight OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, x-webhook-signature, x-webhook-timestamp');
-    res.status(204).send('');
-    return;
-  }
+// FIX: Refactor webhook to use a minimal Express app. This resolves all type errors
+// with the request/response objects and provides a standard way to handle CORS
+// and raw request bodies for signature verification.
+const webhookApp = express();
 
-  // Handle GET requests for health check - simplified for Cashfree verification
-  if (req.method === 'GET') {
-    res.set('Access-Control-Allow-Origin', '*');
-    res.status(200).send('OK');
-    return;
-  }
+// Enable CORS for all origins
+webhookApp.use(cors({ origin: true }));
 
-  // Only allow POST for actual webhooks
-  if (req.method !== 'POST') {
-    res.status(405).json({
-      success: false,
-      message: "Method Not Allowed. Use POST for webhooks.",
-      allowedMethods: ["GET", "POST", "OPTIONS"]
-    });
-    return;
-  }
-
-  corsHandler(req, res, async () => {
-    try {
-      // Log incoming webhook for debugging
-      functions.logger.info("Webhook received:", {
-        headers: req.headers,
-        bodyType: typeof req.body,
-        hasRawBody: !!req.rawBody
-      });
-
-      // Handle Cashfree TEST events
-      if (req.body && req.body.type === "TEST") {
-        functions.logger.info("Received Cashfree TEST webhook for endpoint verification.");
-        res.status(200).json({
-          success: true,
-          message: "Test webhook received successfully",
-          timestamp: Date.now()
-        });
-        return;
-      }
-
-      // Validate webhook has body
-      if (!req.body) {
-        functions.logger.warn("Webhook received with empty body");
-        res.status(400).json({
-          success: false,
-          message: "Bad Request: Empty body"
-        });
-        return;
-      }
-
-      const signature = req.headers["x-webhook-signature"] as string;
-      const timestamp = req.headers["x-webhook-timestamp"] as string;
-      
-      // Get payload - prefer rawBody over stringified body
-      const payload = req.rawBody ? req.rawBody.toString() : JSON.stringify(req.body);
-
-      // For test requests or verification, don't require signature verification
-      const isTestRequest = !signature && !timestamp;
-      
-      if (isTestRequest) {
-        functions.logger.info("Webhook verification request received (no signature headers)");
-        res.status(200).send('OK');
-        return;
-      }
-
-      // Validate required headers for actual webhooks
-      if (!signature || !timestamp) {
-        functions.logger.warn("Missing webhook headers:", {
-          hasSignature: !!signature,
-          hasTimestamp: !!timestamp,
-          allHeaders: Object.keys(req.headers)
-        });
-        res.status(400).json({
-          success: false,
-          message: "Bad Request: Missing required webhook headers",
-          required: ["x-webhook-signature", "x-webhook-timestamp"]
-        });
-        return;
-      }
-
-      // Verify webhook signature
-      if (!verifyWebhookSignature(payload, signature, timestamp)) {
-        functions.logger.error("Webhook signature verification failed");
-        res.status(401).json({
-          success: false,
-          message: "Unauthorized: Invalid webhook signature"
-        });
-        return;
-      }
-
-      const eventData = req.body;
-      
-      // Log successful webhook verification
-      functions.logger.info("Webhook verified successfully:", {
-        type: eventData.type,
-        orderId: eventData.data?.order?.order_id,
-        paymentStatus: eventData.data?.order?.order_status
-      });
-
-      // Process payment if status is PAID
-      if (eventData.data && 
-          eventData.data.order && 
-          eventData.data.order.order_status === "PAID" &&
-          eventData.data.payment) {
-        
-        try {
-          const paymentNotes = JSON.parse(eventData.data.order.order_note) as PaymentNotes;
-          const paymentId = eventData.data.payment.cf_payment_id.toString();
-          
-          await processPurchase(paymentNotes, paymentId, eventData);
-          
-          functions.logger.info(`Payment processed successfully:`, {
-            paymentId,
-            userId: paymentNotes.userId,
-            planType: paymentNotes.planType,
-            orderId: eventData.data.order.order_id
-          });
-        } catch (error: any) {
-          functions.logger.error("Payment processing failed:", error);
-          // Still return 200 to prevent webhook retries for processing errors
-        }
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Webhook processed successfully",
-        timestamp: Date.now()
-      });
-      
-    } catch (error: any) {
-      functions.logger.error("Webhook processing error:", error);
-      res.status(500).json({
-        success: false,
-        message: "Internal Server Error",
-        error: error.message,
-        timestamp: Date.now()
-      });
-    }
-  });
+// Define a GET route for health checks and Cashfree endpoint verification.
+// FIX: Removed explicit type annotations to let Express infer them, resolving type conflicts.
+webhookApp.get("/", (req, res) => {
+    res.status(200).send("OK");
 });
+
+// A raw body parser is needed to verify webhook signatures.
+// It must be placed before any JSON body parsers.
+webhookApp.use(express.raw({ type: "application/json" }));
+
+// Define the POST route for the webhook handler.
+// FIX: Removed explicit type annotations to let Express infer them, resolving type conflicts.
+webhookApp.post("/", async (req, res) => {
+    try {
+        // Log incoming webhook for debugging
+        functions.logger.info("Webhook received:", {
+            headers: req.headers,
+            // req.body is a Buffer here due to express.raw()
+            bodyLength: req.body.length,
+        });
+
+        // The payload is the raw request body buffer converted to a string.
+        const payload = req.body.toString();
+        const eventData = JSON.parse(payload);
+
+        // Handle Cashfree TEST events for endpoint verification
+        if (eventData.type === "TEST") {
+            functions.logger.info("Received Cashfree TEST webhook.");
+            res.status(200).json({ success: true, message: "Test webhook received" });
+            return;
+        }
+
+        const signature = req.headers["x-webhook-signature"] as string;
+        const timestamp = req.headers["x-webhook-timestamp"] as string;
+
+        if (!signature || !timestamp) {
+            functions.logger.warn("Missing webhook headers.");
+            res.status(400).json({ success: false, message: "Missing required webhook headers." });
+            return;
+        }
+
+        // Verify webhook signature
+        if (!verifyWebhookSignature(payload, signature, timestamp)) {
+            functions.logger.error("Webhook signature verification failed.");
+            res.status(401).json({ success: false, message: "Invalid webhook signature." });
+            return;
+        }
+
+        functions.logger.info("Webhook verified successfully:", { type: eventData.type, orderId: eventData.data?.order?.order_id });
+        
+        // Process payment if status is PAID
+        if (eventData.data && eventData.data.order && eventData.data.order.order_status === "PAID" && eventData.data.payment) {
+            try {
+                const paymentNotes = JSON.parse(eventData.data.order.order_note) as PaymentNotes;
+                const paymentId = eventData.data.payment.cf_payment_id.toString();
+                
+                await processPurchase(paymentNotes, paymentId, eventData);
+                
+                functions.logger.info(`Payment processed successfully for order: ${eventData.data.order.order_id}`);
+            } catch (procError: any) {
+                functions.logger.error("Payment processing failed inside webhook:", procError);
+                // Still return 200 to Cashfree to prevent webhook retries for our own processing errors.
+            }
+        }
+
+        res.status(200).json({ success: true, message: "Webhook processed." });
+    
+    } catch (error: any) {
+        functions.logger.error("Webhook handler outer error:", error);
+        res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
+    }
+});
+
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest(webhookApp);
