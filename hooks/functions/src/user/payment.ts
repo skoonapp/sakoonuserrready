@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Removed explicit { Request, Response } imports to resolve type conflicts.
-import express from "express";
+// FIX: Re-introduced explicit { Request, Response } imports from 'express' to resolve type conflicts with firebase-functions.
+import express, { Request, Response } from "express";
 import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
@@ -243,8 +243,8 @@ const webhookApp = express();
 webhookApp.use(cors({ origin: true }));
 
 // Define a GET route for health checks and Cashfree endpoint verification.
-// FIX: Removed explicit type annotations to let Express infer them, resolving type conflicts.
-webhookApp.get("/", (req, res) => {
+// FIX: Added explicit type annotations to resolve ambiguity.
+webhookApp.get("/", (req: Request, res: Response) => {
     res.status(200).send("OK");
 });
 
@@ -253,8 +253,8 @@ webhookApp.get("/", (req, res) => {
 webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler.
-// FIX: Removed explicit type annotations to let Express infer them, resolving type conflicts.
-webhookApp.post("/", async (req, res) => {
+// FIX: Added explicit type annotations to resolve ambiguity.
+webhookApp.post("/", async (req: Request, res: Response) => {
     try {
         // Log incoming webhook for debugging
         functions.logger.info("Webhook received:", {

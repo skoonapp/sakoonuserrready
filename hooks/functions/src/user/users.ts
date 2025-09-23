@@ -29,6 +29,29 @@ export const updateMyProfile = functions
     }
     
     const userRef = db.collection("users").doc(auth.uid);
+
+    // --- NEW: Uniqueness Check for Mobile Number ---
+    // If a mobile number is provided, check if it's already in use by another account.
+    if (mobile && typeof mobile === 'string' && mobile.trim().length === 10) {
+        const formattedMobile = `+91${mobile.trim()}`;
+        const usersWithMobileQuery = db.collection("users").where('mobile', '==', formattedMobile).limit(1);
+        
+        const snapshot = await usersWithMobileQuery.get();
+
+        if (!snapshot.empty) {
+            const existingUser = snapshot.docs[0];
+            // If a user document exists with this mobile number, but it has a different UID, then it's a duplicate.
+            if (existingUser.id !== auth.uid) {
+                functions.logger.warn(`User ${auth.uid} attempted to use mobile ${formattedMobile}, which is already registered to user ${existingUser.id}.`);
+                // Throw a specific error code that the client can handle.
+                throw new functions.https.HttpsError(
+                    "already-exists",
+                    "This mobile number is already registered. Please sign in with your mobile number to access that account."
+                );
+            }
+        }
+    }
+    // --- END: Uniqueness Check ---
    
     try {
       // Use a transaction for a safe read-modify-write operation.
@@ -36,12 +59,15 @@ export const updateMyProfile = functions
       // due to a race condition between client-side creation and this function call.
       await db.runTransaction(async (transaction) => {
         const userDoc = await transaction.get(userRef);
-        const profileData = {
+        
+        // Prepare the base data for the update or creation.
+        const profileData: { [key: string]: any } = {
           name: name.trim(),
           city: city.trim(),
-          hasSeenWelcome: true,
+          hasSeenWelcome: true, // Mark onboarding as complete.
           lastUpdated: Date.now(),
-          mobile: mobile ? `+91${mobile.trim()}` : (userDoc.data()?.mobile || ''),
+          // Conditionally add the mobile number if provided.
+          ...(mobile && { mobile: `+91${mobile.trim()}` })
         };
        
         if (!userDoc.exists) {
@@ -49,10 +75,15 @@ export const updateMyProfile = functions
           // hasn't completed, we create the full user document here to avoid partial data.
           functions.logger.warn(`User document for ${auth.uid} not found during profile update. Creating it now.`);
          
+          // FIX: Explicitly construct the new user object to ensure all properties, including 'mobile', are defined, resolving the TypeScript error.
           const newFullUser = {
             uid: auth.uid,
             email: auth.token.email || null,
-            ...profileData, // Includes name, city, mobile, hasSeenWelcome, lastUpdated
+            name: name.trim(),
+            city: city.trim(),
+            hasSeenWelcome: true,
+            lastUpdated: Date.now(),
+            mobile: mobile ? `+91${mobile.trim()}` : '',
             favoriteListeners: [],
             tokens: 0,
             activePlans: [],
@@ -72,8 +103,12 @@ export const updateMyProfile = functions
         success: true,
         message: "Profile updated successfully."
       };
-    } catch (error) {
-      functions.logger.error(`Error updating profile for user ${auth.uid}:`, error);
-      throw new functions.https.HttpsError("internal", "Error updating profile. Please try again.");
+    } catch (error: any) {
+      // Re-throw the specific "already-exists" error so the client can catch it.
+      if (error.code === 'already-exists') {
+          throw error;
+      }
+      functions.logger.error(`Error in transaction for user ${auth.uid}:`, error);
+      throw new functions.https.HttpsError("internal", "An internal error occurred while updating your profile.");
     }
   });
