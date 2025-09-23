@@ -2,7 +2,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Re-introduced explicit { Request, Response } imports from 'express' to resolve type conflicts with firebase-functions.
 // Using fully qualified 'express.Request' and 'express.Response' to avoid type collision with firebase-functions.
-import express from "express";
+// FIX: Aliased express Request and Response to ExpressRequest and ExpressResponse to resolve type conflicts with firebase-functions.
+import express, { Request as ExpressRequest, Response as ExpressResponse } from "express";
 import cors from "cors";
 import * as crypto from "crypto";
 // FIX: Import `Buffer` from the 'buffer' module to resolve 'Cannot find name 'Buffer'' TypeScript errors. This makes the Node.js global type available for signature verification.
@@ -246,7 +247,8 @@ webhookApp.use(cors({ origin: true }));
 // Define a GET route for health checks and Cashfree endpoint verification.
 // FIX: Added explicit type annotations to resolve ambiguity.
 // FIX: Use express.Request and express.Response to avoid type conflicts.
-webhookApp.get("/", (req: express.Request, res: express.Response) => {
+// FIX: Use aliased ExpressRequest and ExpressResponse to avoid type conflicts with firebase-functions
+webhookApp.get("/", (req: ExpressRequest, res: ExpressResponse) => {
     res.status(200).send("OK");
 });
 
@@ -257,7 +259,8 @@ webhookApp.use(express.raw({ type: "application/json" }));
 // Define the POST route for the webhook handler.
 // FIX: Added explicit type annotations to resolve ambiguity.
 // FIX: Use express.Request and express.Response to avoid type conflicts.
-webhookApp.post("/", async (req: express.Request, res: express.Response) => {
+// FIX: Use aliased ExpressRequest and ExpressResponse to avoid type conflicts with firebase-functions
+webhookApp.post("/", async (req: ExpressRequest, res: ExpressResponse) => {
     try {
         // Log incoming webhook for debugging
         functions.logger.info("Webhook received:", {

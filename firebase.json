@@ -23,7 +23,10 @@
         "firebase-debug.log",
         "firebase-debug.*.log"
       ],
-      "runtime": "nodejs18"
+      "runtime": "nodejs20"
     }
-  ]
+  ],
+  "storage": {
+    "rules": "storage.rules"
+  }
 }
