@@ -9,7 +9,7 @@ interface ListenerCardProps {
   variant?: 'default' | 'compact';
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
-  hasActiveDtCallPlan?: boolean; // NEW PROP
+  hasActiveDtCallPlan?: boolean; 
 }
 
 // --- Icons for Compact Card ---
@@ -35,6 +35,16 @@ const MTCoinIcon: React.FC<{ className?: string }> = ({ className }) => (
         </svg>
     </div>
 );
+const PersonIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-5.5-2.5a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0zM10 12a5.99 5.99 0 00-4.793 2.39A6.483 6.483 0 0010 16.5a6.483 6.483 0 004.793-2.11A5.99 5.99 0 0010 12z" clipRule="evenodd" />
+    </svg>
+);
+const ProfessionalCallIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+        <path fillRule="evenodd" d="M2 3.5A1.5 1.5 0 013.5 2h1.148a1.5 1.5 0 011.465 1.175l.716 3.223a1.5 1.5 0 01-1.052 1.767l-1.28.512c.062.17.126.338.194.504a11.9 11.9 0 004.833 4.833c.166.068.334.132.504.194l.512-1.28a1.5 1.5 0 011.767-1.052l3.223.716A1.5 1.5 0 0118 15.352V16.5a1.5 1.5 0 01-1.5 1.5h-1.528A13.481 13.481 0 012 3.528V2" clipRule="evenodd" />
+    </svg>
+);
 // --- END Icons for Compact Card ---
 
 
@@ -58,15 +68,9 @@ const HeartIcon: React.FC<{ className?: string, isFilled?: boolean }> = ({ class
     </svg>
 );
 
-const CallIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M1.5 4.5a3 3 0 013-3h1.372c.86 0 1.61.586 1.819 1.42l1.105 4.423a1.875 1.875 0 01-.694 1.955l-1.293.97c-.135.101-.164.298-.083.465a7.48 7.48 0 003.429 3.429c.167.081.364.052.465-.083l.97-1.293a1.875 1.875 0 011.955-.694l4.423 1.105c.834.209 1.42.959 1.42 1.82V19.5a3 3 0 01-3 3h-2.25C6.542 22.5 1.5 17.458 1.5 9.75V4.5z" clipRule="evenodd" />
-    </svg>
-);
-
 const ChatBubbleIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path fillRule="evenodd" d="M4.848 2.771A49.144 49.144 0 0112 2.25c2.43 0 4.817.178 7.152.52 1.978.292 3.348 2.024 3.348 3.97v6.02c0 1.946-1.37 3.678-3.348 3.97a48.901 48.901 0 01-3.476.383.39.39 0 00-.297.17l-2.755 4.133a.75.75 0 01-1.248 0l-2.755-4.133a.39.39 0 00-.297-.17 48.9 48.9 0 01-3.476-.384c-1.978-.29-3.348-2.024-3.348-3.97V6.741c0-1.946 1.37-3.68 3.348-3.97zM6.75 8.25a.75.75 0 01.75-.75h9a.75.75 0 010 1.5h-9a.75.75 0 01-.75-.75zm.75 2.25a.75.75 0 000 1.5H12a.75.75 0 000-1.5H7.5z" clipRule="evenodd" />
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+    <path fillRule="evenodd" d="M10 2a8 8 0 100 16 8 8 0 000-16zM2 10a8 8 0 1116 0 8 8 0 01-16 0zm5-2.25A.75.75 0 017.75 7h.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75h-.5a.75.75 0 01-.75-.75v-4.5zm4 0a.75.75 0 01.75-.75h.5a.75.75 0 01.75.75v4.5a.75.75 0 01-.75.75h-.5a.75.75 0 01-.75-.75v-4.5z" clipRule="evenodd" />
   </svg>
 );
 
@@ -81,7 +85,7 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onCh
 
     if (variant === 'compact') {
         return (
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-4 flex items-center space-x-4 border border-slate-200 dark:border-slate-800">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md p-3 flex items-center space-x-4 border border-slate-200 dark:border-slate-800">
             {/* Left side: Avatar, Rating, Online status */}
             <div className="flex flex-col items-center flex-shrink-0 w-20">
                 <div className="relative">
@@ -104,72 +108,78 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onCh
                 </p>
             </div>
             
-            <div className="flex-grow flex items-center justify-between gap-2">
-                {/* Middle part: Info */}
-                <div className="text-left">
-                  <div className="flex items-center gap-1.5">
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xl">{capitalize(listener.name)}</h3>
-                    <VerifiedIcon className="w-5 h-5 text-blue-500 shrink-0" />
-                  </div>
-                  <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Professional Listener</p>
-                  {listener.languages && listener.languages.length > 0 && (
-                      <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400 mt-2 text-sm">
-                        <LanguageIcon className="w-4 h-4"/>
-                        <span className="font-semibold">{capitalize(listener.languages[0])}</span>
-                      </div>
-                  )}
+            <div className="flex-grow flex flex-col justify-between self-stretch">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="flex items-center gap-1.5">
+                            <h3 className="font-bold text-slate-800 dark:text-slate-100 text-xl">{capitalize(listener.name)}</h3>
+                            <VerifiedIcon className="w-5 h-5 text-blue-500 shrink-0" />
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-400 text-sm font-medium">Professional Listener</p>
+                    </div>
+                     {onToggleFavorite && (
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }} 
+                            className="text-slate-400 hover:text-red-500 transition-colors"
+                            aria-label={isFavorite ? `Remove ${listener.name} from favorites` : `Add ${listener.name} to favorites`}
+                        >
+                            <HeartIcon className={`w-6 h-6 ${isFavorite ? 'text-red-500' : ''}`} isFilled={isFavorite} />
+                        </button>
+                    )}
                 </div>
 
-                {/* Right part: Buttons */}
-                <div className="flex flex-col gap-2 items-center">
-                   {onChatClick && (
-                    <button
-                      onClick={onChatClick}
-                      disabled={!listener.online}
-                      className="flex items-center justify-center gap-2 w-full min-w-[100px] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label={`Chat with ${listener.name}`}
-                    >
-                      <ChatBubbleIcon className="w-5 h-5"/>
-                      <span>Chat</span>
-                    </button>
-                  )}
-                  {onCallClick && (
-                    hasActiveDtCallPlan ? (
-                        <button
-                          onClick={onCallClick}
-                          disabled={!listener.online}
-                          className="flex items-center justify-center gap-2 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
-                          aria-label={`Call with ${listener.name}`}
-                        >
-                          <CallIcon className="w-5 h-5"/>
-                          <span>Call</span>
-                        </button>
-                    ) : (
-                        <button
-                          onClick={onCallClick}
-                          disabled={!listener.online}
-                          className="flex items-center justify-center gap-1 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
-                          aria-label={`Call with ${listener.name}`}
-                        >
-                          <MTCoinIcon className="w-5 h-5"/>
-                          <span className="text-sm">2/min</span>
-                          <CallIcon className="w-4 h-4"/>
-                        </button>
-                    )
-                  )}
+                <div className="flex justify-between items-center mt-1">
+                    <div className="flex items-center gap-3 text-slate-500 dark:text-slate-400 text-sm">
+                        <div className="flex items-center gap-1.5" title={`Age: ${listener.age} years`}>
+                            <PersonIcon className="w-4 h-4" />
+                            <span className="font-medium">{listener.age} yrs</span>
+                        </div>
+                         {listener.languages && listener.languages.length > 0 && (
+                            <div className="flex items-center gap-1.5" title={`Language: ${capitalize(listener.languages[0])}`}>
+                                <LanguageIcon className="w-4 h-4"/>
+                                <span className="font-medium">{capitalize(listener.languages[0])}</span>
+                            </div>
+                         )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                         {onChatClick && (
+                            <button
+                              onClick={onChatClick}
+                              disabled={!listener.online}
+                              className="flex items-center justify-center gap-2 w-full min-w-[80px] border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 font-semibold py-2 px-3 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                              aria-label={`Chat with ${listener.name}`}
+                            >
+                              <ChatBubbleIcon className="w-5 h-5"/>
+                              <span className="text-sm">Chat</span>
+                            </button>
+                          )}
+                          {onCallClick && (
+                            hasActiveDtCallPlan ? (
+                                <button
+                                  onClick={onCallClick}
+                                  disabled={!listener.online}
+                                  className="flex items-center justify-center gap-2 w-full min-w-[80px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                                  aria-label={`Call ${listener.name}`}
+                                >
+                                  <ProfessionalCallIcon className="w-5 h-5"/>
+                                  <span className="text-sm">Call</span>
+                                </button>
+                            ) : (
+                                <button
+                                  onClick={onCallClick}
+                                  disabled={!listener.online}
+                                  className="flex items-center justify-center gap-1 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                                  aria-label={`Call ${listener.name} for 2 MT per minute`}
+                                >
+                                  <MTCoinIcon className="w-5 h-5"/>
+                                  <span className="text-sm font-bold">2/min</span>
+                                  <ProfessionalCallIcon className="w-4 h-4 ml-0.5"/>
+                                </button>
+                            )
+                          )}
+                    </div>
                 </div>
             </div>
-
-            {onToggleFavorite && (
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }} 
-                    className="text-slate-400 hover:text-red-500 transition-colors self-start"
-                    aria-label={isFavorite ? `Remove ${listener.name} from favorites` : `Add ${listener.name} to favorites`}
-                >
-                    <HeartIcon className={`w-6 h-6 ${isFavorite ? 'text-red-500' : ''}`} isFilled={isFavorite} />
-                </button>
-            )}
-
           </div>
         );
     }
@@ -232,7 +242,7 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onCh
                     className="w-16 h-16 mx-auto bg-green-500 group-hover:bg-green-600 text-white font-bold rounded-full transition-colors flex items-center justify-center shadow-lg transform hover:scale-110 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed disabled:scale-100"
                     aria-label={`Call ${listener.name}`}
                 >
-                    <CallIcon className="w-8 h-8" />
+                    <ProfessionalCallIcon className="w-8 h-8" />
                 </button>
             }
             {onChatClick &&
