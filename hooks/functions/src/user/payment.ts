@@ -4,8 +4,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Switched to ES module imports for Express to resolve module resolution issues.
 // And explicitly import Request, Response, NextFunction to avoid type conflicts.
-// FIX: Using NextFunction from express, but Request/Response will come from firebase-functions to avoid type conflicts.
-import express, { NextFunction } from "express";
+// FIX: Using express types for express app handlers.
+import express, { Request, Response, NextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";
@@ -239,23 +239,23 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
 const webhookApp: express.Express = express();
 
 // Enable CORS for all origins using our custom CORS function
-// FIX: Using types from firebase-functions directly to resolve type conflicts.
-webhookApp.use((req: functions.https.Request, res: functions.Response, next: NextFunction) => {
+// FIX: Using express Request and Response types for middleware.
+webhookApp.use((req: Request, res: Response, next: NextFunction) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
-    setCORSHeaders(res as any, req.get('Origin'));
+    setCORSHeaders(res, req.get('Origin'));
     res.status(204).send('');
     return;
   }
   
   // Set CORS headers for all requests
-  setCORSHeaders(res as any, req.get('Origin'));
+  setCORSHeaders(res, req.get('Origin'));
   next();
 });
 
 // Define a GET route for health checks and Cashfree endpoint verification
-// FIX: Using types from firebase-functions directly to resolve type conflicts.
-webhookApp.get("/", (req: functions.https.Request, res: functions.Response) => {
+// FIX: Using express Request and Response types for routes.
+webhookApp.get("/", (req: Request, res: Response) => {
   res.status(200).send("OK");
 });
 
@@ -264,8 +264,8 @@ webhookApp.get("/", (req: functions.https.Request, res: functions.Response) => {
 webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler
-// FIX: Using types from firebase-functions directly to resolve type conflicts.
-webhookApp.post("/", async (req: functions.https.Request, res: functions.Response) => {
+// FIX: Using express Request and Response types for routes.
+webhookApp.post("/", async (req: Request, res: Response) => {
   try {
     // Log incoming webhook for debugging
     functions.logger.info("Webhook received:", {

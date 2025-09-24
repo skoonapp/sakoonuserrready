@@ -90,14 +90,17 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
                     {listener.online && <OnlineIndicator />}
                 </div>
                 <div className="flex-grow min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                        <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
                        <VerifiedIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                       <div className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400">
+                           <AgeIcon className="w-4 h-4" />
+                           <span>{listener.age}</span>
+                       </div>
                     </div>
-                    <div className="flex items-center gap-1.5 mt-1 text-sm text-slate-500 dark:text-slate-400">
-                         <AgeIcon className="w-4 h-4" />
-                        <span>{listener.age} years old</span>
-                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 mt-1 truncate">
+                        {listener.online ? 'Tap to chat' : 'Currently Offline'}
+                    </p>
                 </div>
             </button>
         );
@@ -137,7 +140,7 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
                 </div>
             </div>
             
-            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 pl-2 pt-6">
+            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 pl-2 pt-8">
                 {onCallClick && (
                     hasActiveDtCallPlan ? (
                         <button 
