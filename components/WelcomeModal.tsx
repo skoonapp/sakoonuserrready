@@ -76,11 +76,17 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
       // listener in App.tsx will detect the 'hasSeenWelcome' change.
     } catch (err: any) {
       console.error("Error updating user profile:", err);
-      // Handle the specific error for a mobile number that already exists.
-      if (err.code === 'functions/already-exists') {
-          setError(err.message); // Use the user-friendly message from the backend.
-      } else {
-          setError(err.message || "आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।");
+      // Provide specific, user-friendly error messages based on the error code from the backend.
+      switch (err.code) {
+        case 'already-exists':
+        case 'invalid-argument':
+          setError(err.message); // Backend provides user-friendly messages for these.
+          break;
+        case 'internal':
+          setError("An internal error occurred. Please try again later or contact support."); // A more helpful message.
+          break;
+        default:
+          setError("आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।"); // A generic fallback.
       }
     } finally {
       setLoading(false);
