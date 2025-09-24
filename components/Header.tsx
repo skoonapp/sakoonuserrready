@@ -50,11 +50,11 @@ const Header: React.FC<HeaderProps> = ({ wallet }) => {
   const activePlans = (wallet.activePlans || []).filter(p => p.expiryTimestamp > now);
 
   const totalMinutes = activePlans
-    .filter(p => p.type === 'call' && p.minutes)
+    .filter(p => p.type === 'call' && typeof p.minutes === 'number')
     .reduce((sum, p) => sum + (p.minutes || 0), 0);
 
   const totalMessages = activePlans
-    .filter(p => p.type === 'chat' && p.messages)
+    .filter(p => p.type === 'chat' && typeof p.messages === 'number')
     .reduce((sum, p) => sum + (p.messages || 0), 0);
     
   return (
