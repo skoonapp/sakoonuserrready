@@ -1,11 +1,7 @@
-
-
-
-
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Use `require` for Express to ensure robust type resolution in a CommonJS environment, preventing conflicts with Firebase's global types.
-import express = require("express");
+// FIX: Switched to a standard ES module import for Express to resolve module compatibility errors.
+import express from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";

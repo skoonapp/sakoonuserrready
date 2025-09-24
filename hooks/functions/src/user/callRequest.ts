@@ -17,6 +17,8 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
     }
 
     const effectiveTimeInSeconds = 3600; // Token valid for 1 hour
+    // FIX: Calculate the expiration timestamp instead of passing a duration.
+    const expirationTimestamp = Math.floor(Date.now() / 1000) + effectiveTimeInSeconds;
     const payload = "";
 
     const token = RtcTokenBuilder.buildTokenWithUid(
@@ -25,7 +27,7 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
         planId,
         userId, // Use string UID
         RtcRole.PUBLISHER,
-        effectiveTimeInSeconds,
+        expirationTimestamp, // Pass the correct expiration timestamp
         payload
     );
     
