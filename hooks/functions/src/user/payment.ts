@@ -2,8 +2,8 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Switched to ES module imports for Express to resolve module resolution issues.
-// FIX: Using namespace-qualified express types to avoid conflicts with firebase-functions types.
-import express from "express";
+// And explicitly import Request, Response, NextFunction to avoid type conflicts.
+import express, { Request, Response, NextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";
@@ -237,7 +237,7 @@ const webhookApp = express();
 
 // Enable CORS for all origins using our custom CORS function
 // FIX: Using namespace-qualified express types to prevent conflicts and ensure correct type inference.
-webhookApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+webhookApp.use((req: Request, res: Response, next: NextFunction) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res as any, req.get('Origin'));
@@ -252,7 +252,7 @@ webhookApp.use((req: express.Request, res: express.Response, next: express.NextF
 
 // Define a GET route for health checks and Cashfree endpoint verification
 // FIX: Using namespace-qualified express types to prevent conflicts.
-webhookApp.get("/", (req: express.Request, res: express.Response) => {
+webhookApp.get("/", (req: Request, res: Response) => {
   res.status(200).send("OK");
 });
 
@@ -262,7 +262,7 @@ webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler
 // FIX: Using namespace-qualified express types to prevent conflicts.
-webhookApp.post("/", async (req: express.Request, res: express.Response) => {
+webhookApp.post("/", async (req: Request, res: Response) => {
   try {
     // Log incoming webhook for debugging
     functions.logger.info("Webhook received:", {
