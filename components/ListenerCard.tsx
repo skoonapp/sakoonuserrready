@@ -9,6 +9,7 @@ interface ListenerCardProps {
   variant?: 'default' | 'compact';
   isFavorite?: boolean;
   onToggleFavorite?: () => void;
+  hasActiveDtCallPlan?: boolean; // NEW PROP
 }
 
 // --- Icons for Compact Card ---
@@ -71,7 +72,7 @@ const ChatBubbleIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 
 
-const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onChatClick, variant = 'default', isFavorite, onToggleFavorite }) => {
+const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onChatClick, variant = 'default', isFavorite, onToggleFavorite, hasActiveDtCallPlan }) => {
     const [imageError, setImageError] = useState(false);
     const fallbackImage = LISTENER_IMAGES[listener.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % LISTENER_IMAGES.length];
     const listenerImage = listener.image || fallbackImage;
@@ -133,16 +134,28 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, onCallClick, onCh
                     </button>
                   )}
                   {onCallClick && (
-                    <button
-                      onClick={onCallClick}
-                      disabled={!listener.online}
-                      className="flex items-center justify-center gap-1 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
-                      aria-label={`Call with ${listener.name}`}
-                    >
-                      <MTCoinIcon className="w-5 h-5"/>
-                      <span className="text-sm">2/min</span>
-                      <CallIcon className="w-4 h-4"/>
-                    </button>
+                    hasActiveDtCallPlan ? (
+                        <button
+                          onClick={onCallClick}
+                          disabled={!listener.online}
+                          className="flex items-center justify-center gap-2 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                          aria-label={`Call with ${listener.name}`}
+                        >
+                          <CallIcon className="w-5 h-5"/>
+                          <span>Call</span>
+                        </button>
+                    ) : (
+                        <button
+                          onClick={onCallClick}
+                          disabled={!listener.online}
+                          className="flex items-center justify-center gap-1 w-full min-w-[100px] bg-rose-500 hover:bg-rose-600 text-white font-bold py-2 px-3 rounded-lg transition-colors shadow-lg disabled:bg-slate-400 dark:disabled:bg-slate-700 disabled:opacity-70 disabled:cursor-not-allowed"
+                          aria-label={`Call with ${listener.name}`}
+                        >
+                          <MTCoinIcon className="w-5 h-5"/>
+                          <span className="text-sm">2/min</span>
+                          <CallIcon className="w-4 h-4"/>
+                        </button>
+                    )
                   )}
                 </div>
             </div>

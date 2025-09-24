@@ -37,6 +37,12 @@ const CallsView: React.FC<CallsViewProps> = ({ onStartSession, currentUser, show
       showNotification("SakoonApp", "Failed to update favorites. Please check your connection and try again.");
     }
   };
+  
+  // Check if the user has an active DT calling plan.
+  const now = Date.now();
+  const hasActiveDtCallPlan = (currentUser.activePlans || []).some(
+      p => p.type === 'call' && p.expiryTimestamp > now && (p.minutes || 0) > 0
+  );
 
   if (loading) {
     return <ViewLoader />;
@@ -62,6 +68,7 @@ const CallsView: React.FC<CallsViewProps> = ({ onStartSession, currentUser, show
             onCallClick={() => onStartSession('call', listener)}
             isFavorite={favorites.includes(listener.id)}
             onToggleFavorite={() => handleToggleFavorite(listener.id)}
+            hasActiveDtCallPlan={hasActiveDtCallPlan}
           />
         ))}
       </div>
