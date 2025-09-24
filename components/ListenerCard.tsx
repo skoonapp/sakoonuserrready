@@ -54,6 +54,12 @@ const MTCoinIcon: React.FC<{ className?: string }> = ({ className }) => (
     </div>
 );
 
+const VerifiedIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+    </svg>
+);
+
 const OnlineIndicator: React.FC = () => (
     <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-green-400 ring-2 ring-white dark:ring-slate-900"></span>
 );
@@ -84,7 +90,10 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
                     {listener.online && <OnlineIndicator />}
                 </div>
                 <div className="flex-grow min-w-0">
-                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
+                    <div className="flex items-center gap-1.5">
+                       <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
+                       <VerifiedIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                    </div>
                     <div className="flex items-center gap-1.5 mt-1 text-sm text-slate-500 dark:text-slate-400">
                          <AgeIcon className="w-4 h-4" />
                         <span>{listener.age} years old</span>
@@ -109,7 +118,10 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
             </div>
             
             <div className="flex-grow min-w-0">
-                <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
+                 <div className="flex items-center gap-1.5">
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
+                    <VerifiedIcon className="w-4 h-4 text-blue-500 flex-shrink-0" />
+                </div>
                 <p className="text-sm font-semibold text-slate-500 dark:text-slate-400">Professional Listener</p>
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-sm text-slate-600 dark:text-slate-300 mt-2">
                     <div className="flex items-center gap-1.5">
@@ -125,7 +137,7 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
                 </div>
             </div>
             
-            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 pl-2 pt-4">
+            <div className="flex-shrink-0 flex flex-col items-center justify-center gap-2 pl-2 pt-6">
                 {onCallClick && (
                     hasActiveDtCallPlan ? (
                         <button 
