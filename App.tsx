@@ -92,6 +92,13 @@ const App: React.FC = () => {
         };
     }, []);
     
+    const handleOnboardingComplete = useCallback(() => {
+        if (user) {
+            // Optimistically update the user state to immediately hide the welcome modal.
+            // The snapshot listener will still get the "official" update from Firestore later.
+            setUser(prevUser => prevUser ? { ...prevUser, hasSeenWelcome: true } : null);
+        }
+    }, [user]);
 
     // --- Render Logic ---
     if (isInitializing) {
@@ -112,6 +119,7 @@ const App: React.FC = () => {
                         user={user} 
                         onShowTerms={() => setShowPolicy('terms')}
                         onShowPrivacyPolicy={() => setShowPolicy('privacy')}
+                        onOnboardingComplete={handleOnboardingComplete}
                     />
                     {showPolicy === 'terms' && <TermsAndConditions onClose={() => setShowPolicy(null)} />}
                     {showPolicy === 'privacy' && <PrivacyPolicy onClose={() => setShowPolicy(null)} />}

@@ -28,7 +28,7 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
 
     // Use refs to store the latest raw data from each source without causing extra re-renders.
     const profilesRef = useRef<Omit<Listener, 'online'>[]>([]);
-    const statusesRef = useRef<Record<string, { isOnline: boolean }>>({});
+    const statusesRef = useRef<Record<string, any>>({});
     // Keep a ref to favorites to avoid re-running effects if only the parent component re-renders.
     const favoritesRef = useRef(favoriteListenerIds);
     useEffect(() => {
@@ -42,10 +42,22 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
         const statuses = statusesRef.current;
         const favorites = favoritesRef.current;
 
-        const combinedListeners = profiles.map(profile => ({
-            ...profile,
-            online: statuses[profile.id]?.isOnline === true,
-        }));
+        const combinedListeners = profiles.map(profile => {
+            const statusEntry = statuses[profile.id];
+            let isOnline = false;
+            if (statusEntry) {
+                // Robustly check for various common presence data structures.
+                if (typeof statusEntry === 'object' && statusEntry !== null) {
+                    isOnline = statusEntry.isOnline === true || statusEntry.online === true || statusEntry.state === 'online';
+                } else if (statusEntry === true || statusEntry === 'online') {
+                    isOnline = true;
+                }
+            }
+            return {
+                ...profile,
+                online: isOnline,
+            };
+        });
 
         const sortedListeners = [...combinedListeners].sort((a, b) => {
             // Priority 1: Online status (online users always come first).

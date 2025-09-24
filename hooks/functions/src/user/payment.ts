@@ -1,10 +1,9 @@
 
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Using `import = require()` syntax for better compatibility with CommonJS modules like Express,
-// especially in environments where `esModuleInterop` is not enabled. This ensures that the Express
-// function and its associated types are correctly resolved, fixing multiple type errors.
-import express = require("express");
+// FIX: Switched to standard ES module import for Express to resolve module system conflicts.
+// Using aliased types to prevent any potential conflicts with Firebase function types.
+import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction as ExpressNextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";
@@ -238,7 +237,7 @@ const webhookApp = express();
 
 // Enable CORS for all origins using our custom CORS function
 // FIX: Using qualified express types to prevent conflicts and ensure correct type inference.
-webhookApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+webhookApp.use((req: ExpressRequest, res: ExpressResponse, next: ExpressNextFunction) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res as any, req.get('Origin'));
@@ -252,7 +251,7 @@ webhookApp.use((req: express.Request, res: express.Response, next: express.NextF
 });
 
 // Define a GET route for health checks and Cashfree endpoint verification
-webhookApp.get("/", (req: express.Request, res: express.Response) => {
+webhookApp.get("/", (req: ExpressRequest, res: ExpressResponse) => {
   res.status(200).send("OK");
 });
 
@@ -260,7 +259,7 @@ webhookApp.get("/", (req: express.Request, res: express.Response) => {
 webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler
-webhookApp.post("/", async (req: express.Request, res: express.Response) => {
+webhookApp.post("/", async (req: ExpressRequest, res: ExpressResponse) => {
   try {
     // Log incoming webhook for debugging
     functions.logger.info("Webhook received:", {

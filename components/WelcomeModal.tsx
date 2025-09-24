@@ -6,6 +6,7 @@ interface WelcomeModalProps {
   user: User;
   onShowTerms: () => void;
   onShowPrivacyPolicy: () => void;
+  onOnboardingComplete: () => void;
 }
 
 // --- Icons ---
@@ -28,7 +29,7 @@ const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 
-const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPrivacyPolicy }) => {
+const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPrivacyPolicy, onOnboardingComplete }) => {
   const [name, setName] = useState(user.name || '');
   const [city, setCity] = useState('');
   const [mobile, setMobile] = useState('');
@@ -72,8 +73,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
       
       const updateProfile = functions.httpsCallable('updateMyProfile');
       await updateProfile(updateData);
-      // Success! The modal will disappear automatically because the onSnapshot
-      // listener in App.tsx will detect the 'hasSeenWelcome' change.
+      onOnboardingComplete();
+      // Success! The modal will now disappear immediately because of the callback.
     } catch (err: any) {
       console.error("Error updating user profile:", err);
       // Provide specific, user-friendly error messages based on the error code from the backend.
