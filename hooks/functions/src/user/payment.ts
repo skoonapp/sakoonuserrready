@@ -1,10 +1,10 @@
 
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Using `import * as express from "express"` which is the correct way to import modules using `export =`
-// when `esModuleInterop` might not be enabled. This ensures `express.Request` and other types
-// are resolved correctly. The previous default import was likely causing type resolution issues.
-import * as express from "express";
+// FIX: Using `import = require()` syntax for better compatibility with CommonJS modules like Express,
+// especially in environments where `esModuleInterop` is not enabled. This ensures that the Express
+// function and its associated types are correctly resolved, fixing multiple type errors.
+import express = require("express");
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";

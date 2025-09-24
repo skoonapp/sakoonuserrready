@@ -85,6 +85,9 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
         case 'internal':
           setError("An internal error occurred. Please try again later or contact support."); // A more helpful message.
           break;
+        case 'unavailable':
+          setError("सर्वर से कनेक्ट नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।");
+          break;
         default:
           setError("आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।"); // A generic fallback.
       }
