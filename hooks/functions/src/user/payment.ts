@@ -234,7 +234,8 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
 });
 
 // CORS-enabled webhook with Express app
-const webhookApp = express();
+// FIX: Explicitly typing the express app instance to resolve type conflicts with firebase-functions.
+const webhookApp: express.Express = express();
 
 // Enable CORS for all origins using our custom CORS function
 // FIX: Using aliased express types to prevent conflicts with firebase-functions types.
