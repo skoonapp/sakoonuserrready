@@ -3,9 +3,11 @@ import { db, rtdb } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
 import type { Listener } from '../types';
 
-// This function transforms Firestore data, excluding the online status which comes from RTDB.
-const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.firestore.DocumentData>): Omit<Listener, 'online'> => {
+// This function now transforms Firestore data AND extracts a fallback online status.
+const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.firestore.DocumentData>): Omit<Listener, 'online'> & { firestoreOnlineStatus: boolean } => {
     const data = doc.data() || {};
+    // A listener is considered online via Firestore if their appStatus is "Available" OR they have the isOnline flag set to true.
+    const isFirestoreOnline = data.appStatus === 'Available' || data.isOnline === true;
     return {
         id: doc.id,
         name: data.displayName || data.name || 'Unnamed Listener',
@@ -14,6 +16,7 @@ const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.
         reviewsCount: data.reviewsCount || 0,
         gender: data.gender || 'Female',
         age: data.age || 0,
+        firestoreOnlineStatus: isFirestoreOnline,
     };
 };
 
@@ -27,7 +30,7 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
     const [loading, setLoading] = useState(true);
 
     // Use refs to store the latest raw data from each source without causing extra re-renders.
-    const profilesRef = useRef<Omit<Listener, 'online'>[]>([]);
+    const profilesRef = useRef<(Omit<Listener, 'online'> & { firestoreOnlineStatus: boolean })[]>([]);
     const statusesRef = useRef<Record<string, any>>({});
     // Keep a ref to favorites to avoid re-running effects if only the parent component re-renders.
     const favoritesRef = useRef(favoriteListenerIds);
@@ -36,7 +39,6 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
     }, [favoriteListenerIds]);
 
     // A single, memoized function to combine, sort, and update the final state.
-    // This is the core of the fix, preventing race conditions and unnecessary renders.
     const combineAndSetState = useCallback(() => {
         const profiles = profilesRef.current;
         const statuses = statusesRef.current;
@@ -44,18 +46,26 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
 
         const combinedListeners = profiles.map(profile => {
             const statusEntry = statuses[profile.id];
-            let isOnline = false;
+            let isRtdbOnline = false;
             if (statusEntry) {
                 // Robustly check for various common presence data structures.
                 if (typeof statusEntry === 'object' && statusEntry !== null) {
-                    isOnline = statusEntry.isOnline === true || statusEntry.online === true || statusEntry.state === 'online';
+                    isRtdbOnline = statusEntry.isOnline === true || statusEntry.online === true || statusEntry.state === 'online';
                 } else if (statusEntry === true || statusEntry === 'online') {
-                    isOnline = true;
+                    isRtdbOnline = true;
                 }
             }
+            
+            // A listener is considered online if EITHER the fast, real-time RTDB presence says so,
+            // OR the more persistent Firestore document status says so. This provides a robust fallback.
+            const finalOnlineStatus = isRtdbOnline || profile.firestoreOnlineStatus;
+
+            // Destructure to remove the temporary firestoreOnlineStatus field from the final object.
+            const { firestoreOnlineStatus, ...restOfProfile } = profile;
+
             return {
-                ...profile,
-                online: isOnline,
+                ...restOfProfile,
+                online: finalOnlineStatus,
             };
         });
 
