@@ -1,10 +1,11 @@
 // functions/src/common/cors.ts
-import { Response } from 'express';
+import * as express from 'express';
 
 /**
  * Set CORS headers for HTTP responses
  */
-export function setCORSHeaders(res: Response, origin?: string): void {
+// FIX: Use express.Response to avoid type conflicts with global Response
+export function setCORSHeaders(res: express.Response, origin?: string): void {
   // Allow specific origins based on your authorized domains
   const allowedOrigins = [
     // Firebase hosting domains

@@ -5,7 +5,7 @@ import type { User, Plan as PlanType } from '../types';
 import HomeHistory from './HomeHistory';
 
 
-interface PlansViewProps {
+interface HomeViewProps {
   currentUser: User;
   onPurchase: (plan: PlanType | { tokens: number; price: number }) => void;
   loadingPlan: string | null;
@@ -41,7 +41,7 @@ const PadlockIcon: React.FC<{ className?: string }> = ({ className }) => (
 // --- End Icons ---
 
 
-const PlansView: React.FC<PlansViewProps> = ({ currentUser, onPurchase, loadingPlan }) => {
+const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPlan }) => {
   const tokenOptions = [
     { tokens: 10, price: 50 },
     { tokens: 20, price: 99, discount: 1 },
@@ -192,4 +192,4 @@ const PlansView: React.FC<PlansViewProps> = ({ currentUser, onPurchase, loadingP
   );
 };
 
-export default React.memo(PlansView);
+export default React.memo(HomeView);

@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Changed import to ES6 module style for express and destructured types to resolve type errors.
-import express, { Request, Response, NextFunction } from "express";
+// FIX: Changed import to use express namespace to resolve type errors.
+import * as express from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { Cashfree } from "cashfree-pg";
@@ -182,7 +182,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
 const webhookApp: express.Express = express();
 
 // FIX: Used imported Request, Response, NextFunction types to ensure correct type checking.
-webhookApp.use((req: Request, res: Response, next: NextFunction) => {
+webhookApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res, req.get('Origin'));
     res.status(204).send('');
@@ -193,11 +193,11 @@ webhookApp.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // FIX: Used imported Request, Response types.
-webhookApp.get("/", (req: Request, res: Response) => res.status(200).send("OK"));
+webhookApp.get("/", (req: express.Request, res: express.Response) => res.status(200).send("OK"));
 webhookApp.use(express.raw({ type: "application/json" }));
 
 // FIX: Used imported Request, Response types.
-webhookApp.post("/", async (req: Request, res: Response) => {
+webhookApp.post("/", async (req: express.Request, res: express.Response) => {
   try {
     const payloadBuffer = req.body as Buffer;
     const eventData = JSON.parse(payloadBuffer.toString());
