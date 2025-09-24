@@ -38,6 +38,7 @@ export interface Listener {
   reviewsCount: number;
   gender: 'Male' | 'Female';
   age: number;
+  languages?: string[];
 }
 
 export interface Plan {

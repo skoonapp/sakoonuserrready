@@ -16,6 +16,7 @@ const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.
         reviewsCount: data.reviewsCount || 0,
         gender: data.gender || 'Female',
         age: data.age || 0,
+        languages: data.languages || [],
         firestoreOnlineStatus: isFirestoreOnline,
     };
 };
