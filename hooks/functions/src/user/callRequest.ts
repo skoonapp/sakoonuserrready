@@ -18,18 +18,30 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
 
     const effectiveTimeInSeconds = 3600; // Token valid for 1 hour
     // FIX: Calculate the expiration timestamp instead of passing a duration.
+    // The Zego SDK requires the expiration time as a UNIX timestamp (seconds since epoch).
     const expirationTimestamp = Math.floor(Date.now() / 1000) + effectiveTimeInSeconds;
     const payload = "";
 
-    const token = RtcTokenBuilder.buildTokenWithUid(
-        getZegoAppId(),
-        getZegoServerSecret(),
-        planId,
-        userId, // Use string UID
-        RtcRole.PUBLISHER,
-        expirationTimestamp, // Pass the correct expiration timestamp
-        payload
-    );
-    
-    return { token };
+    try {
+        const token = RtcTokenBuilder.buildTokenWithUid(
+            getZegoAppId(),
+            getZegoServerSecret(),
+            planId,
+            userId, // Use string UID
+            RtcRole.PUBLISHER,
+            expirationTimestamp, // Pass the correct expiration timestamp
+            payload
+        );
+        
+        return { token };
+    } catch (error) {
+        functions.logger.error("Error generating Zego token:", {
+            error,
+            planId,
+            userId,
+            appId: getZegoAppId(),
+        });
+        // Throw a generic error to the client to avoid exposing internal details.
+        throw new functions.https.HttpsError("internal", "Failed to generate session token.");
+    }
 });
