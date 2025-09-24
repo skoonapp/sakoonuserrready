@@ -28,22 +28,54 @@ const ChatIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+const AgeIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M10 8a3 3 0 100-6 3 3 0 000 6zM3.465 14.493a1.23 1.23 0 00.41 1.412A9.957 9.957 0 0010 18c2.31 0 4.438-.784 6.131-2.095a1.23 1.23 0 00.41-1.412A9.99 9.99 0 0010 12c-2.31 0-4.438.784-6.131 2.095a1.23 1.23 0 00-.404.404z" />
+    </svg>
+);
+
+
 const OnlineIndicator: React.FC = () => (
-    <span className="absolute bottom-0 right-0 block h-3.5 w-3.5 rounded-full bg-green-400 ring-2 ring-white dark:ring-slate-800"></span>
+    <span className="absolute bottom-0 right-0 block h-4 w-4 rounded-full bg-green-400 ring-2 ring-white dark:ring-slate-900"></span>
 );
 
 interface ListenerCardProps {
   listener: Listener;
-  variant: 'compact' | 'full';
+  variant: 'compact' | 'full' | 'chat-list';
   onCallClick?: () => void;
   onChatClick?: () => void;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
+  isFavorite?: boolean;
+  onToggleFavorite?: () => void;
   hasActiveDtCallPlan?: boolean;
   hasActiveDtChatPlan?: boolean;
 }
 
-const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallClick, onChatClick, isFavorite, onToggleFavorite, hasActiveDtCallPlan, hasActiveDtChatPlan }) => {
+const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallClick, onChatClick, isFavorite = false, onToggleFavorite, hasActiveDtCallPlan, hasActiveDtChatPlan }) => {
+    
+    if (variant === 'chat-list') {
+        return (
+            <button
+                onClick={onChatClick}
+                disabled={!listener.online}
+                className="w-full text-left p-2.5 flex items-center gap-4 border-b border-slate-100 dark:border-slate-800 last:border-b-0 transition-colors duration-200 hover:bg-slate-50 dark:hover:bg-slate-800/50 disabled:opacity-50 disabled:hover:bg-transparent"
+                aria-label={`Chat with ${listener.name}`}
+            >
+                <div className="relative flex-shrink-0">
+                    <img src={listener.image} alt={listener.name} className="w-14 h-14 rounded-full object-cover" />
+                    {listener.online && <OnlineIndicator />}
+                </div>
+                <div className="flex-grow min-w-0">
+                    <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
+                    <div className="flex items-center gap-1.5 mt-1 text-sm text-slate-500 dark:text-slate-400">
+                         <AgeIcon className="w-4 h-4" />
+                        <span>{listener.age} years old</span>
+                    </div>
+                </div>
+            </button>
+        );
+    }
+    
+    // Default to 'compact' or 'full' variant
     return (
         <div className={`bg-white dark:bg-slate-800 rounded-2xl shadow-md border border-slate-200 dark:border-slate-700 p-4 flex items-center gap-4 transition-all duration-300 ${!listener.online ? 'opacity-60' : ''}`}>
             <div className="relative flex-shrink-0">
@@ -53,9 +85,11 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
             <div className="flex-grow min-w-0">
                 <div className="flex items-center justify-between">
                     <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 truncate">{listener.name}</h3>
-                    <button onClick={onToggleFavorite} className="text-slate-400 hover:text-red-500 transition-colors p-1 -mr-1">
-                        <HeartIcon active={isFavorite} className={`w-6 h-6 ${isFavorite ? 'text-red-500' : ''}`} />
-                    </button>
+                    {onToggleFavorite && (
+                        <button onClick={onToggleFavorite} className="text-slate-400 hover:text-red-500 transition-colors p-1 -mr-1">
+                            <HeartIcon active={isFavorite} className={`w-6 h-6 ${isFavorite ? 'text-red-500' : ''}`} />
+                        </button>
+                    )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                     <StarIcon className="w-4 h-4 text-amber-400" />

@@ -16,33 +16,6 @@ const ChatsView: React.FC<ChatsViewProps> = ({ onStartSession, currentUser, show
   const favorites = currentUser.favoriteListeners || [];
   const { listeners, loading, loadingMore, hasMore, loadMoreListeners } = useListeners(favorites);
 
-  const handleToggleFavorite = async (listenerId: string) => {
-    if (!currentUser) return;
-    const userRef = db.collection('users').doc(currentUser.uid);
-    const isFavorite = favorites.includes(listenerId);
-
-    try {
-      if (isFavorite) {
-        await userRef.update({
-          favoriteListeners: firebase.firestore.FieldValue.arrayRemove(listenerId)
-        });
-      } else {
-        await userRef.update({
-          favoriteListeners: firebase.firestore.FieldValue.arrayUnion(listenerId)
-        });
-      }
-    } catch (error) {
-      console.error("Failed to update favorites:", error);
-      showNotification("SakoonApp", "Failed to update favorites. Please check your connection and try again.");
-    }
-  };
-  
-  // Check if the user has an active DT chatting plan.
-  const now = Date.now();
-  const hasActiveDtChatPlan = (currentUser.activePlans || []).some(
-      p => p.type === 'chat' && p.expiryTimestamp > now && (p.messages || 0) > 0
-  );
-
   if (loading) {
     return <ViewLoader />;
   }
@@ -57,17 +30,14 @@ const ChatsView: React.FC<ChatsViewProps> = ({ onStartSession, currentUser, show
   }
 
   return (
-    <div className="container mx-auto px-2 sm:px-4 py-4">
-      <div className="space-y-2 max-w-2xl mx-auto">
+    <div className="container mx-auto px-0 sm:px-4 py-0 h-full">
+      <div className="max-w-2xl mx-auto bg-white dark:bg-slate-900 h-full">
         {listeners.map((listener: Listener) => (
           <ListenerCard
             key={listener.id}
             listener={listener}
-            variant="compact"
+            variant="chat-list"
             onChatClick={() => onStartSession('chat', listener)}
-            isFavorite={favorites.includes(listener.id)}
-            onToggleFavorite={() => handleToggleFavorite(listener.id)}
-            hasActiveDtChatPlan={hasActiveDtChatPlan}
           />
         ))}
       </div>

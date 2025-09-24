@@ -3,7 +3,8 @@ import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Switched to ES module imports for Express to resolve module resolution issues.
 // And explicitly import Request, Response, NextFunction to avoid type conflicts.
-import express, { Request, Response, NextFunction } from "express";
+// FIX: Aliased Express's Request and Response to avoid type conflicts with firebase-functions.
+import express, { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { getCashfreeClient, getCashfreeWebhookSecret, db } from "../config";
@@ -236,8 +237,8 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
 const webhookApp = express();
 
 // Enable CORS for all origins using our custom CORS function
-// FIX: Using namespace-qualified express types to prevent conflicts and ensure correct type inference.
-webhookApp.use((req: Request, res: Response, next: NextFunction) => {
+// FIX: Using aliased express types to prevent conflicts with firebase-functions types.
+webhookApp.use((req: ExpressRequest, res: ExpressResponse, next: NextFunction) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res as any, req.get('Origin'));
@@ -251,8 +252,8 @@ webhookApp.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // Define a GET route for health checks and Cashfree endpoint verification
-// FIX: Using namespace-qualified express types to prevent conflicts.
-webhookApp.get("/", (req: Request, res: Response) => {
+// FIX: Using aliased express types to prevent conflicts.
+webhookApp.get("/", (req: ExpressRequest, res: ExpressResponse) => {
   res.status(200).send("OK");
 });
 
@@ -261,8 +262,8 @@ webhookApp.get("/", (req: Request, res: Response) => {
 webhookApp.use(express.raw({ type: "application/json" }));
 
 // Define the POST route for the webhook handler
-// FIX: Using namespace-qualified express types to prevent conflicts.
-webhookApp.post("/", async (req: Request, res: Response) => {
+// FIX: Using aliased express types to prevent conflicts.
+webhookApp.post("/", async (req: ExpressRequest, res: ExpressResponse) => {
   try {
     // Log incoming webhook for debugging
     functions.logger.info("Webhook received:", {
