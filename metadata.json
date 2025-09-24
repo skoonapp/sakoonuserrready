@@ -1,6 +1,8 @@
 {
   "name": " SakoonApp user",
   "description": "Talk to trained listeners and find emotional support. A safe space for your feelings.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "microphone"
+  ],
   "prompt": ""
 }
