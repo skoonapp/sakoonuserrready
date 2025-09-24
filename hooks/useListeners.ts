@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { db, rtdb } from '../utils/firebase';
 import firebase from 'firebase/compat/app';
 import type { Listener } from '../types';
@@ -18,25 +18,63 @@ const transformListenerDoc = (doc: firebase.firestore.DocumentSnapshot<firebase.
 };
 
 /**
- * An optimized hook to fetch and manage the list of listeners with real-time online status.
- * This version uses separate effects for fetching profiles and statuses to improve performance
- * and prevent the app from hanging or becoming unresponsive.
+ * An optimized and robust hook to fetch listeners with real-time online status.
+ * It correctly combines data from Firestore (profiles) and Realtime Database (statuses)
+ * and sorts them to prioritize online and favorite listeners.
  */
 export const useListeners = (favoriteListenerIds: string[] = []) => {
-    const [profiles, setProfiles] = useState<Omit<Listener, 'online'>[]>([]);
-    const [onlineStatuses, setOnlineStatuses] = useState<Record<string, { isOnline: boolean }>>({});
     const [listeners, setListeners] = useState<Listener[]>([]);
     const [loading, setLoading] = useState(true);
 
-    // Effect 1: Fetch listener profiles from Firestore once.
+    // Use refs to store the latest raw data from each source without causing extra re-renders.
+    const profilesRef = useRef<Omit<Listener, 'online'>[]>([]);
+    const statusesRef = useRef<Record<string, { isOnline: boolean }>>({});
+    // Keep a ref to favorites to avoid re-running effects if only the parent component re-renders.
+    const favoritesRef = useRef(favoriteListenerIds);
     useEffect(() => {
-        setLoading(true);
+        favoritesRef.current = favoriteListenerIds;
+    }, [favoriteListenerIds]);
+
+    // A single, memoized function to combine, sort, and update the final state.
+    // This is the core of the fix, preventing race conditions and unnecessary renders.
+    const combineAndSetState = useCallback(() => {
+        const profiles = profilesRef.current;
+        const statuses = statusesRef.current;
+        const favorites = favoritesRef.current;
+
+        const combinedListeners = profiles.map(profile => ({
+            ...profile,
+            online: statuses[profile.id]?.isOnline === true,
+        }));
+
+        const sortedListeners = [...combinedListeners].sort((a, b) => {
+            // Priority 1: Online status (online users always come first).
+            if (a.online !== b.online) return a.online ? -1 : 1;
+            
+            // Priority 2: Favorites (favorited users are grouped after online status).
+            const aIsFav = favorites.includes(a.id);
+            const bIsFav = favorites.includes(b.id);
+            if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
+
+            // Priority 3: Rating (higher rated users come next).
+            return b.rating - a.rating;
+        });
+        
+        setListeners(sortedListeners);
+
+        // Only set loading to false once we have attempted to combine.
+        if (loading) {
+            setLoading(false);
+        }
+    }, [loading]);
+
+    // Effect 1: Set up the listener for Firestore profiles.
+    useEffect(() => {
         const query = db.collection('listeners').where('status', '==', 'active');
         const unsubscribe = query.onSnapshot(
             (snapshot) => {
-                const fetchedProfiles = snapshot.docs.map(transformListenerDoc);
-                setProfiles(fetchedProfiles);
-                // Loading is set to false in the combiner effect.
+                profilesRef.current = snapshot.docs.map(transformListenerDoc);
+                combineAndSetState(); // Re-combine data when profiles update.
             },
             (error) => {
                 console.error("Error fetching listener profiles:", error);
@@ -44,47 +82,21 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
             }
         );
         return () => unsubscribe();
-    }, []);
+    }, [combineAndSetState]);
 
-    // Effect 2: Listen for all online statuses from RTDB once.
+    // Effect 2: Set up the listener for RTDB statuses.
     useEffect(() => {
         const statusRef = rtdb.ref('status');
         const onStatusChange = (snapshot: firebase.database.DataSnapshot) => {
-            setOnlineStatuses(snapshot.val() || {});
+            statusesRef.current = snapshot.val() || {};
+            combineAndSetState(); // Re-combine data when statuses update.
         };
         statusRef.on('value', onStatusChange);
         return () => statusRef.off('value', onStatusChange);
-    }, []);
-
-    // Effect 3: Combine and sort data whenever profiles, statuses, or favorites change.
-    useEffect(() => {
-        // Only process if profiles have been loaded to prevent flashing an empty list.
-        if (profiles.length > 0 || !loading) {
-            const combined = profiles.map(profile => ({
-                ...profile,
-                online: onlineStatuses[profile.id]?.isOnline === true,
-            }));
-
-            const sorted = [...combined].sort((a, b) => {
-                // Priority 1: Online status (online users come first)
-                if (a.online !== b.online) return a.online ? -1 : 1;
-                
-                // Priority 2: Favorites (favorited users come next)
-                const aIsFav = favoriteListenerIds.includes(a.id);
-                const bIsFav = favoriteListenerIds.includes(b.id);
-                if (aIsFav !== bIsFav) return aIsFav ? -1 : 1;
-
-                // Priority 3: Rating (higher rated users come next)
-                return b.rating - a.rating;
-            });
-            
-            setListeners(sorted);
-            // We can now safely say we are done loading.
-            if (loading) setLoading(false);
-        }
-    }, [profiles, onlineStatuses, favoriteListenerIds, loading]);
-
-    // The UI expects this API, pagination is handled by fetching all active listeners.
+    }, [combineAndSetState]);
+    
+    // The hook fetches all active listeners at once, so pagination is not currently implemented.
+    // This signature is maintained for compatibility with components.
     return { 
         listeners, 
         loading, 

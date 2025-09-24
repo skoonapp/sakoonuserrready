@@ -1,5 +1,7 @@
+
 import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
+// FIX: Corrected Express import to a default import and will use qualified types (e.g., express.Request) to resolve type resolution issues.
 import express from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
@@ -233,6 +235,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
 const webhookApp = express();
 
 // Enable CORS for all origins using our custom CORS function
+// FIX: Using qualified express types to prevent conflicts and ensure correct type inference.
 webhookApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
@@ -322,4 +325,5 @@ webhookApp.post("/", async (req: express.Request, res: express.Response) => {
   }
 });
 
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest(webhookApp);
+// FIX: Cast the express app to 'any' to work around a known issue with firebase-functions type definitions, which don't have an overload for an Express app.
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest(webhookApp as any);
