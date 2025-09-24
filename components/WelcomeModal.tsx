@@ -151,7 +151,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
                         <WalletIcon className="w-6 h-6 text-indigo-500"/>
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200">3. प्लान खरीदें</h3>
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200">प्लान खरीदें</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">'Home' टैब पर जाकर अपनी पसंद का प्लान खरीदें।</p>
                     </div>
                 </li>
@@ -160,7 +160,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
                         <CallChatIcon className="w-6 h-6 text-green-500"/>
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200">4. Listener से जुड़ें</h3>
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200">Listener से जुड़ें</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">'Calls' या 'Chats' टैब से किसी से भी बात करें।</p>
                     </div>
                 </li>
@@ -169,7 +169,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
                         <RobotIcon className="w-6 h-6 text-purple-500"/>
                     </div>
                     <div>
-                        <h3 className="font-bold text-slate-700 dark:text-slate-200">5. @SakoonApp Help से पूछें</h3>
+                        <h3 className="font-bold text-slate-700 dark:text-slate-200">@SakoonApp Help से पूछें</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">कोई सवाल है? नीचे AI बटन पर क्लिक करें।</p>
                     </div>
                 </li>

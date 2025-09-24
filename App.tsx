@@ -55,6 +55,9 @@ const App: React.FC = () => {
                             hasSeenWelcome: false,
                         };
                         await userDocRef.set(newUser);
+                        // Set user state immediately for a faster UI response for new users,
+                        // before the snapshot listener is even attached.
+                        setUser(newUser);
                     }
                     
                     // Now that we're sure the document exists, attach the realtime listener.
