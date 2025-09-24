@@ -3,11 +3,6 @@ import * as admin from "firebase-admin";
 import {db} from "../config";
 import { FREE_MESSAGES_ON_SIGNUP } from "./constants";
 
-// Initialize admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
 // --- Update User's Own Profile Information ---
 // This function ensures a user can only update their own details.
 export const updateMyProfile = functions
