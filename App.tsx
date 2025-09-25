@@ -32,60 +32,64 @@ const App: React.FC = () => {
     useEffect(() => {
         let unsubscribeUser: () => void = () => {};
 
-        const unsubscribeAuth = auth.onAuthStateChanged(async (firebaseUser) => {
-            unsubscribeUser(); // Unsubscribe from previous user's listener
+        const unsubscribeAuth = auth.onAuthStateChanged((firebaseUser) => {
+            unsubscribeUser(); // Always clean up previous listener first.
+
             if (firebaseUser) {
+                // A user is authenticated, set up a real-time listener for their profile.
                 const userDocRef = db.collection('users').doc(firebaseUser.uid);
                 
-                try {
-                    // First, check if the user document exists.
-                    const doc = await userDocRef.get();
-                    
-                    if (!doc.exists) {
-                        // If it doesn't exist, create it. Await this operation.
-                        const newUser: User = {
-                            uid: firebaseUser.uid,
-                            name: firebaseUser.displayName || 'New User',
-                            email: firebaseUser.email,
-                            mobile: firebaseUser.phoneNumber || '',
-                            favoriteListeners: [],
-                            tokens: 0,
-                            activePlans: [],
-                            freeMessagesRemaining: FREE_MESSAGES_ON_SIGNUP,
-                            hasSeenWelcome: false,
-                        };
-                        await userDocRef.set(newUser);
-                        // Set user state immediately for a faster UI response for new users,
-                        // before the snapshot listener is even attached.
-                        setUser(newUser);
-                    }
-                    
-                    // Now that we're sure the document exists, attach the realtime listener.
-                    unsubscribeUser = userDocRef.onSnapshot(
-                        (snapshot) => {
-                            if (snapshot.exists) {
-                                setUser(snapshot.data() as User);
+                unsubscribeUser = userDocRef.onSnapshot(
+                    async (snapshot) => {
+                        if (snapshot.exists) {
+                            // The user document exists, update our state.
+                            setUser(snapshot.data() as User);
+                        } else {
+                            // This is a new user (or their doc was deleted).
+                            // Create their document in Firestore.
+                            const newUser: User = {
+                                uid: firebaseUser.uid,
+                                name: firebaseUser.displayName || 'New User',
+                                email: firebaseUser.email,
+                                mobile: firebaseUser.phoneNumber || '',
+                                favoriteListeners: [],
+                                tokens: 0,
+                                activePlans: [],
+                                freeMessagesRemaining: FREE_MESSAGES_ON_SIGNUP,
+                                hasSeenWelcome: false,
+                            };
+                            try {
+                                // Create the document. The onSnapshot listener will automatically
+                                // receive this new data and update the state.
+                                await userDocRef.set(newUser);
+                                setUser(newUser);
+                            } catch (error) {
+                                console.error("Failed to create new user document:", error);
+                                // If creation fails, we can't proceed. Log the user out.
+                                auth.signOut();
+                                setUser(null);
                             }
-                            setIsInitializing(false);
-                        },
-                        (error) => {
-                            console.error("Error fetching user document with onSnapshot:", error);
-                            setUser(null);
-                            setIsInitializing(false);
                         }
-                    );
-                } catch (error) {
-                    console.error("Error getting or creating user document:", error);
-                    setUser(null);
-                    setIsInitializing(false);
-                }
-
+                        // Crucially, we stop initializing as soon as we have the first bit of data.
+                        setIsInitializing(false);
+                    },
+                    (error) => {
+                        // Handle errors with the listener itself.
+                        console.error("Firestore onSnapshot listener error:", error);
+                        // Log out and stop initializing to show the login screen.
+                        auth.signOut();
+                        setUser(null);
+                        setIsInitializing(false);
+                    }
+                );
             } else {
+                // No user is authenticated. We can immediately stop initializing.
                 setUser(null);
                 setIsInitializing(false);
             }
         });
-        
+
+        // Cleanup function for when the App component unmounts.
         return () => {
             unsubscribeAuth();
             unsubscribeUser();
