@@ -18,13 +18,6 @@ export const LISTENER_IMAGES = [
 
 
 // Other application constants
-export const AVATAR_EMOJIS = ['👨', '👩', '🎭', '🎪', '🎨', '🎵'];
-export const QUICK_REPLIES = [
-    "Hello, how can I help you today?",
-    "I understand. Please give me a moment to look into this.",
-    "Thank you for sharing. I'm here for you.",
-    "Is there anything else I can help you with?",
-];
 export const FREE_MESSAGES_ON_SIGNUP = 5;
 
 // NEW: Updated Plan structure for the new paymentService

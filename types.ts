@@ -1,4 +1,3 @@
-import type { Plan as PlanType } from './types';
 
 export type ActiveView = 'home' | 'calls' | 'chats' | 'profile';
 
@@ -51,21 +50,6 @@ export interface Plan {
   minutes?: number;
   messages?: number;
   discount?: number;
-}
-
-
-export interface PurchasedPlan {
-  id: string;
-  type: 'call' | 'chat';
-  plan: Plan;
-  purchaseTimestamp: number;
-  expiryTimestamp: number;
-  remainingSeconds?: number;
-  totalSeconds?: number;
-  remainingMessages?: number;
-  totalMessages?: number;
-  isTokenSession?: boolean;
-  isFreeTrial?: boolean;
 }
 
 export interface ChatMessageSender {
@@ -126,16 +110,4 @@ export interface UsageHistoryItem {
   deduction: string; // e.g., "DT Plan" or "10 MT"
   balanceAfter: string; // e.g., "6 Min Left" or "42 MT"
   listenerName: string;
-}
-
-
-// FIX: Define and export the SessionHistoryEntry type to resolve import errors.
-export interface SessionHistoryEntry {
-  id: string;
-  listenerName: string;
-  listenerImage: string;
-  type: 'call' | 'chat';
-  timestamp: number;
-  durationSeconds?: number;
-  messageCount?: number;
 }
