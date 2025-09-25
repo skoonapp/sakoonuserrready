@@ -197,13 +197,19 @@ webhookApp.use((req: any, res: any, next: NextFunction) => {
 
 webhookApp.get("/", (req: any, res: any) => res.status(200).send("OK"));
 
-// FIX: The raw body parser is now applied directly to the POST route. This resolves a TypeScript
-// overload error on `app.use()` and ensures the raw payload is available for webhook signature verification.
-// The raw body is needed for webhook signature verification.
-webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any, res: any) => {
+// FIX: Using express.json with a 'verify' function to capture the raw body for webhook signature
+// verification. This workaround resolves a persistent TypeScript overload error related to
+// express.raw() and type conflicts within the Firebase Functions environment.
+webhookApp.post("/", express.json({
+  verify: (req: any, res, buf) => {
+    // Save the raw body buffer to a new property on the request object
+    req.rawBody = buf;
+  },
+}), async (req: any, res: any) => {
   try {
-    const payloadBuffer = req.body as Buffer;
-    const eventData = JSON.parse(payloadBuffer.toString());
+    const payloadBuffer = req.rawBody as Buffer;
+    // The JSON body is already parsed by express.json(), so we can use req.body directly.
+    const eventData = req.body;
 
     if (eventData.type === "TEST") {
       functions.logger.info("Received Cashfree TEST webhook.");
