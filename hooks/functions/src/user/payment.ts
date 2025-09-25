@@ -5,6 +5,8 @@ import * as express from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { Cashfree } from "cashfree-pg";
+// FIX: Use an ES module import for 'axios' instead of 'require' to resolve the type error and maintain code consistency.
+import axios from "axios";
 import { initializeCashfree, getCashfreeWebhookSecret, db } from "../config";
 import { setCORSHeaders } from "../common/cors";
 
@@ -147,7 +149,6 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
       response = await (Cashfree as any).Orders.create("2023-08-01", orderRequest);
     } else {
       // Fallback: try direct API call
-      const axios = require('axios');
       const baseURL = process.env.NODE_ENV === 'production' 
         ? 'https://api.cashfree.com/pg/orders' 
         : 'https://sandbox.cashfree.com/pg/orders';

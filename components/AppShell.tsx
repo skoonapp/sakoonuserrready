@@ -15,6 +15,7 @@ import RechargeModal from './RechargeModal';
 import ViewLoader from './ViewLoader';
 import CashfreeModal from './CashfreeModal';
 import Notification from './Notification';
+import PullToRefresh from './PullToRefresh';
 
 // --- Lazy Load Views for Code Splitting ---
 const HomeView = lazy(() => import('./Listeners'));
@@ -77,6 +78,12 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const [isSwiping, setIsSwiping] = useState<boolean | null>(null);
     const touchDeltaXRef = useRef(0);
     const viewsContainerRef = useRef<HTMLDivElement>(null);
+
+    // --- Pull to Refresh State ---
+    const [isRefreshing, setIsRefreshing] = useState(false);
+    const [pullStart, setPullStart] = useState<number | null>(null);
+    const [pullDistance, setPullDistance] = useState(0);
+    const PULL_THRESHOLD = 80;
 
 
     // --- Effects ---
@@ -360,11 +367,23 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         setTimeout(() => setFeedback(null), 5000);
     }, [paymentDescription]);
     
-    // --- Swipe Handlers ---
+    // --- Combined Gesture Handlers for Swipe and Pull-to-Refresh ---
+
     const handleTouchStart = useCallback((e: React.TouchEvent) => {
-        if (activeCallSession || activeChatSession || showAICompanion || showPolicy || showRechargeModal || paymentSessionId) {
+        if (activeCallSession || activeChatSession || showAICompanion || showPolicy || showRechargeModal || paymentSessionId || isRefreshing) {
             return;
         }
+
+        // For PTR
+        const isPtrEnabled = [0, 1, 2].includes(activeIndex);
+        const activeScrollView = document.getElementById(`scroll-view-${activeIndex}`);
+        if (isPtrEnabled && activeScrollView && activeScrollView.scrollTop === 0) {
+            setPullStart(e.targetTouches[0].clientY);
+        } else {
+            setPullStart(null);
+        }
+
+        // For Swipe
         setTouchStartX(e.targetTouches[0].clientX);
         setTouchStartY(e.targetTouches[0].clientY);
         setIsSwiping(null);
@@ -372,40 +391,59 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         if (viewsContainerRef.current) {
             viewsContainerRef.current.style.transition = 'none';
         }
-    }, [activeCallSession, activeChatSession, showAICompanion, showPolicy, showRechargeModal, paymentSessionId]);
+    }, [activeIndex, activeCallSession, activeChatSession, showAICompanion, showPolicy, showRechargeModal, paymentSessionId, isRefreshing]);
 
     const handleTouchMove = useCallback((e: React.TouchEvent) => {
-        if (touchStartX === null || touchStartY === null || !viewsContainerRef.current) return;
+        if (touchStartX === null || touchStartY === null || isRefreshing) return;
 
         const currentX = e.targetTouches[0].clientX;
         const currentY = e.targetTouches[0].clientY;
         const deltaX = currentX - touchStartX;
         const deltaY = currentY - touchStartY;
-        
-        if (isSwiping === null) {
-            if (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10) {
-                setIsSwiping(Math.abs(deltaX) > Math.abs(deltaY));
-            }
+
+        if (isSwiping === null && (Math.abs(deltaX) > 10 || Math.abs(deltaY) > 10)) {
+            setIsSwiping(Math.abs(deltaX) > Math.abs(deltaY));
         }
         
         if (isSwiping === true) {
-            e.preventDefault();
+            setPullStart(null);
+            setPullDistance(0);
+            
             let resistanceDelta = deltaX;
             if ((activeIndex === 0 && deltaX > 0) || (activeIndex === views.length - 1 && deltaX < 0)) {
                 resistanceDelta = deltaX / 4;
             }
             touchDeltaXRef.current = resistanceDelta;
-            const baseTranslatePercent = -activeIndex * 100;
-            viewsContainerRef.current.style.transform = `translateX(calc(${baseTranslatePercent}% + ${resistanceDelta}px))`;
+            if (viewsContainerRef.current) {
+                viewsContainerRef.current.style.transform = `translateX(calc(-${activeIndex * 100}% + ${resistanceDelta}px)) translateY(0px)`;
+            }
+        } else if (isSwiping === false && pullStart !== null) {
+            const isPtrEnabled = [0, 1, 2].includes(activeIndex);
+            if (isPtrEnabled && deltaY > 0) {
+                const resistedDistance = Math.pow(deltaY, 0.85);
+                setPullDistance(resistedDistance);
+            } else {
+                 setPullStart(null);
+                 setPullDistance(0);
+            }
         }
-    }, [touchStartX, touchStartY, activeIndex, isSwiping, views.length]);
+    }, [touchStartX, touchStartY, activeIndex, isSwiping, pullStart, isRefreshing, views.length]);
 
     const handleTouchEnd = useCallback(() => {
         if (viewsContainerRef.current) {
             viewsContainerRef.current.style.transition = 'transform 0.3s ease-in-out';
         }
 
-        if (isSwiping) {
+        // PTR End Logic
+        if (pullStart !== null && pullDistance > PULL_THRESHOLD && isSwiping === false) {
+            setIsRefreshing(true);
+            setTimeout(() => window.location.reload(), 500);
+        } else {
+            setPullDistance(0);
+        }
+
+        // Swipe End Logic
+        if (isSwiping === true) {
             const swipeThreshold = viewsContainerRef.current ? viewsContainerRef.current.clientWidth / 4 : 50;
             const finalDeltaX = touchDeltaXRef.current;
 
@@ -423,8 +461,9 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         setTouchStartX(null);
         setTouchStartY(null);
         setIsSwiping(null);
+        setPullStart(null);
         touchDeltaXRef.current = 0;
-    }, [isSwiping, activeIndex, navigateTo, views.length]);
+    }, [isSwiping, pullStart, pullDistance, activeIndex, navigateTo, views.length, isRefreshing]);
 
 
     const renderViewByIndex = useCallback((index: number) => {
@@ -489,12 +528,14 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
             >
+                <PullToRefresh isRefreshing={isRefreshing} pullDistance={pullDistance} threshold={PULL_THRESHOLD} />
                 <Suspense fallback={<ViewLoader />}>
                      <div
                         ref={viewsContainerRef}
-                        className="flex h-full transition-transform duration-300 ease-in-out"
+                        className="flex h-full"
                         style={{ 
-                            transform: `translateX(-${activeIndex * 100}%)`
+                            transform: `translateX(-${activeIndex * 100}%) translateY(${isRefreshing ? PULL_THRESHOLD : pullDistance}px)`,
+                            transition: pullStart === null ? 'transform 0.3s ease-in-out' : 'none',
                         }}
                     >
                         {views.map((viewName, index) => (
@@ -503,7 +544,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                                 className="w-full h-full flex-shrink-0"
                                 aria-hidden={activeIndex !== index}
                             >
-                                <div className="w-full h-full overflow-y-auto no-scrollbar">
+                                <div id={`scroll-view-${index}`} className="w-full h-full overflow-y-auto no-scrollbar">
                                     {renderViewByIndex(index)}
                                 </div>
                             </div>
