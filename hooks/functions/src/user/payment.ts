@@ -185,7 +185,6 @@ export const createCashfreeOrder = region('asia-south1').https.onCall(async (dat
 
 const webhookApp = express();
 
-// FIX: To resolve type conflicts, register all middleware before defining routes. This ensures proper type inference.
 webhookApp.use((req: any, res: any, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res, req.get('Origin'));
@@ -196,12 +195,10 @@ webhookApp.use((req: any, res: any, next: NextFunction) => {
   next();
 });
 
-// FIX: Use express.raw() as app-level middleware before routes. This is necessary for webhook signature verification.
-webhookApp.use(express.raw({ type: "application/json" }));
-
 webhookApp.get("/", (req: any, res: any) => res.status(200).send("OK"));
 
-webhookApp.post("/", async (req: any, res: any) => {
+// Apply the raw body parser as route-specific middleware to avoid type conflicts.
+webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any, res: any) => {
   try {
     const payloadBuffer = req.body as Buffer;
     const eventData = JSON.parse(payloadBuffer.toString());
