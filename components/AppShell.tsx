@@ -16,6 +16,7 @@ import ViewLoader from './ViewLoader';
 import CashfreeModal from './CashfreeModal';
 import Notification from './Notification';
 import PullToRefresh from './PullToRefresh';
+import PresenceManager from './PresenceManager';
 
 // --- Lazy Load Views for Code Splitting ---
 const HomeView = lazy(() => import('./Listeners'));
@@ -506,6 +507,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
 
     return (
         <div className="relative w-full max-w-md mx-auto bg-slate-100 dark:bg-slate-950 flex flex-col h-screen shadow-2xl transition-colors duration-300 overflow-hidden">
+            <PresenceManager user={user} />
             <Header wallet={wallet} />
             
             {notification && (
