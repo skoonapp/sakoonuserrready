@@ -94,13 +94,12 @@ const App: React.FC = () => {
     
     const handleOnboardingComplete = useCallback(() => {
         if (user) {
-            // This function is called upon successful form submission in WelcomeModal.
-            // Previously, it performed an optimistic update of the UI.
-            // To ensure the UI state is always driven by the backend source of truth,
-            // the optimistic update is removed. Now, the app will wait for the
-            // Firestore onSnapshot listener to receive the `hasSeenWelcome: true`
-            // update from the database, which then triggers the UI change.
-            // This prevents potential race conditions and ensures data consistency.
+            // Perform a safe optimistic update.
+            // This is called after the backend function successfully completes.
+            // We can confidently update the UI now to provide instant feedback
+            // and remove the welcome modal. The Firestore snapshot listener
+            // will soon receive the same data, ensuring consistency.
+            setUser(currentUser => currentUser ? { ...currentUser, hasSeenWelcome: true } : null);
         }
     }, [user]);
 
