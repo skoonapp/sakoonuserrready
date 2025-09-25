@@ -4,7 +4,6 @@ import FAQ from './FAQ';
 import Contact from './Contact';
 import Testimonials from './Testimonials';
 import ApplyAsListener from './ApplyAsListener';
-import ListenerStatusIndicator from './ListenerStatusIndicator';
 
 interface ProfileViewProps {
   currentUser: User;
@@ -65,10 +64,6 @@ const ProfileView: React.FC<ProfileViewProps> = ({
     <div className="bg-slate-50 dark:bg-slate-950">
       <div className="container mx-auto px-4 pt-2 pb-6 space-y-6">
         
-        <ListenerStatusIndicator />
-
-        <div className="border-b border-slate-200 dark:border-slate-700"></div>
-
         {/* Highlighted Apply as Listener Section */}
         <section id="apply" className="py-3 bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-cyan-950/50 dark:to-blue-950/50 rounded-xl shadow-lg border-2 border-cyan-200 dark:border-cyan-600">
           <div className="container mx-auto px-6">

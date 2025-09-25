@@ -503,7 +503,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     }, [user, loadingPlan, handlePurchase, handleStartSession, deferredInstallPrompt, handleInstallClick, handleLogout, isDarkMode, toggleDarkMode, showNotification]);
 
     if (activeCallSession) return <CallUI session={activeCallSession} user={user} onLeave={handleCallSessionEnd} />;
-    if (activeChatSession) return <ChatUI session={activeChatSession} user={user} onLeave={handleChatSessionEnd} />;
+    if (activeChatSession) return <ChatUI session={activeChatSession} user={user} onLeave={handleChatSessionEnd} onStartCall={(listener) => handleStartSession('call', listener)} />;
 
     return (
         <div className="relative w-full max-w-md mx-auto bg-slate-100 dark:bg-slate-950 flex flex-col h-screen shadow-2xl transition-colors duration-300 overflow-hidden">

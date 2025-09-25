@@ -1,5 +1,5 @@
-// FIX: Using specific named imports for firebase-functions to avoid polluting the global namespace.
-import { region, https, logger } from "firebase-functions/v1";
+// FIX: Use a namespace import for firebase-functions to avoid global type pollution and conflicts with Express types.
+import * as functions from "firebase-functions/v1";
 import * as admin from "firebase-admin";
 // FIX: Using a default import for the express app and specific type imports to resolve conflicts with firebase-functions types.
 import express from "express";
@@ -18,7 +18,7 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
   const { userId, planType, planDetails: rawPlanDetails } = paymentNotes;
 
   if (!userId) {
-    throw new https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
+    throw new functions.https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
   }
 
   // Handle planDetails which might be a string or an object
@@ -32,7 +32,7 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
   await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
     const paymentDoc = await transaction.get(paymentRef);
     if (paymentDoc.exists) {
-      logger.warn(`Payment ${paymentId} पहले ही प्रोसेस हो चुका है।`);
+      functions.logger.warn(`Payment ${paymentId} पहले ही प्रोसेस हो चुका है।`);
       return;
     }
 
@@ -102,20 +102,20 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
 };
 
 // CORS-enabled createCashfreeOrder function
-export const createCashfreeOrder = region('asia-south1').https.onCall(async (data, context) => {
-  if (!context.auth) throw new https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
+export const createCashfreeOrder = functions.region('asia-south1').https.onCall(async (data, context) => {
+  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
 
   initializeCashfree();
 
   const { amount, planType, planDetails } = data;
 
-  logger.info("Order creation request received:", { userId: context.auth.uid, amount, planType });
+  functions.logger.info("Order creation request received:", { userId: context.auth.uid, amount, planType });
 
-  if (!amount || amount <= 0) throw new https.HttpsError("invalid-argument", "Invalid amount");
-  if (!planType || !["mt", "dt"].includes(planType)) throw new https.HttpsError("invalid-argument", "Invalid plan type");
+  if (!amount || amount <= 0) throw new functions.https.HttpsError("invalid-argument", "Invalid amount");
+  if (!planType || !["mt", "dt"].includes(planType)) throw new functions.https.HttpsError("invalid-argument", "Invalid plan type");
 
   const userDoc = await db.collection("users").doc(context.auth.uid).get();
-  if (!userDoc.exists) throw new https.HttpsError("not-found", "User नहीं मिला।");
+  if (!userDoc.exists) throw new functions.https.HttpsError("not-found", "User नहीं मिला।");
 
   const userData = userDoc.data()!;
 
@@ -166,7 +166,7 @@ export const createCashfreeOrder = region('asia-south1').https.onCall(async (dat
       });
     }
     
-    logger.info("Cashfree order created successfully:", { orderId: orderRequest.order_id, userId: context.auth.uid });
+    functions.logger.info("Cashfree order created successfully:", { orderId: orderRequest.order_id, userId: context.auth.uid });
     
     return {
       success: true,
@@ -174,12 +174,12 @@ export const createCashfreeOrder = region('asia-south1').https.onCall(async (dat
       orderId: response.data.order_id
     };
   } catch (error: any) {
-    logger.error("Cashfree order creation failed:", {
+    functions.logger.error("Cashfree order creation failed:", {
       userId: context.auth.uid,
       errorMessage: error.message,
       errorResponse: error.response?.data,
     });
-    throw new https.HttpsError("internal", error.response?.data?.message || "पेमेंट शुरू करने में विफल। कृपया फिर से प्रयास करें।");
+    throw new functions.https.HttpsError("internal", error.response?.data?.message || "पेमेंट शुरू करने में विफल। कृपया फिर से प्रयास करें।");
   }
 });
 
@@ -206,7 +206,7 @@ webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any,
     const eventData = JSON.parse(payloadBuffer.toString());
 
     if (eventData.type === "TEST") {
-      logger.info("Received Cashfree TEST webhook.");
+      functions.logger.info("Received Cashfree TEST webhook.");
       return res.status(200).json({ success: true, message: "Test webhook received" });
     }
 
@@ -214,7 +214,7 @@ webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any,
     const timestamp = req.headers["x-webhook-timestamp"] as string;
 
     if (!signature || !timestamp) {
-      logger.warn("Missing webhook headers.");
+      functions.logger.warn("Missing webhook headers.");
       return res.status(400).json({ success: false, message: "Missing required webhook headers." });
     }
 
@@ -224,11 +224,11 @@ webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any,
       .digest("base64");
 
     if (!crypto.timingSafeEqual(Buffer.from(signature, 'base64'), Buffer.from(expectedSignature, 'base64'))) {
-      logger.error("Webhook signature verification failed.");
+      functions.logger.error("Webhook signature verification failed.");
       return res.status(401).json({ success: false, message: "Invalid webhook signature." });
     }
     
-    logger.info("Webhook verified successfully:", { type: eventData.type, orderId: eventData.data?.order?.order_id });
+    functions.logger.info("Webhook verified successfully:", { type: eventData.type, orderId: eventData.data?.order?.order_id });
 
     if (eventData.data?.order?.order_status === "PAID") {
       try {
@@ -240,18 +240,18 @@ webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any,
         };
         const paymentId = eventData.data.payment.cf_payment_id.toString();
         await processPurchase(paymentNotes, paymentId, eventData);
-        logger.info(`Payment processed successfully for order: ${eventData.data.order.order_id}`);
+        functions.logger.info(`Payment processed successfully for order: ${eventData.data.order.order_id}`);
       } catch (procError) {
-        logger.error("Payment processing failed inside webhook:", procError);
+        functions.logger.error("Payment processing failed inside webhook:", procError);
       }
     }
 
     return res.status(200).json({ success: true, message: "Webhook processed." });
   } catch (error: any) {
-    logger.error("Webhook handler outer error:", error);
+    functions.logger.error("Webhook handler outer error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 });
 
 // FIX: Cast express app to 'any' to satisfy the Firebase Functions onRequest type signature.
-export const cashfreeWebhook = region('asia-south1').https.onRequest(webhookApp as any);
+export const cashfreeWebhook = functions.region('asia-south1').https.onRequest(webhookApp as any);

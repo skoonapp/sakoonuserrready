@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, Fragment } from 'react';
-import type { ChatSession, User, ChatMessage } from '../types';
+import type { ChatSession, User, ChatMessage, Listener } from '../types';
 import { fetchZegoToken } from '../utils/zego.ts';
 import { functions } from '../utils/firebase.ts';
 
@@ -13,12 +13,18 @@ interface ChatUIProps {
   session: ChatSession;
   user: User;
   onLeave: (success: boolean, consumedMessages: number) => void;
+  onStartCall: (listener: Listener) => void;
 }
 
 // --- SVG Icons ---
 const VerifiedIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+    </svg>
+);
+const CallIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
     </svg>
 );
 const SendIcon: React.FC<{className?: string}> = ({className}) => (
@@ -61,7 +67,7 @@ const formatDateSeparator = (date: Date) => {
     return date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' });
 };
 
-const ChatUI: React.FC<ChatUIProps> = ({ session, user, onLeave }) => {
+const ChatUI: React.FC<ChatUIProps> = ({ session, user, onLeave, onStartCall }) => {
   const zpInstanceRef = useRef<any>(null);
   const hasLeftRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -272,7 +278,18 @@ const ChatUI: React.FC<ChatUIProps> = ({ session, user, onLeave }) => {
             <div className="flex items-center gap-1.5"><h1 className="font-bold text-lg text-slate-800 dark:text-slate-100">{listener.name}</h1><VerifiedIcon className="w-5 h-5 text-blue-500" /></div>
             <p className={`text-xs font-semibold ${getStatusColor()}`}>{getStatusText()}</p>
         </div>
-        <button onClick={() => handleLeave(true)} className="text-sm bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-md hover:bg-red-200 transition-colors disabled:opacity-50 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900" aria-label="End Chat" disabled={status === 'ended'}>End Chat</button>
+        <button 
+            onClick={() => {
+                handleLeave(true); // End the current chat session
+                onStartCall(session.listener); // Start a new call session
+            }}
+            className="flex items-center gap-2 bg-green-500 text-white font-semibold px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors disabled:opacity-50"
+            aria-label={`Call ${listener.name}`}
+            disabled={status !== 'connected'}
+        >
+            <CallIcon className="w-4 h-4" />
+            <span className="text-sm">Call Now</span>
+        </button>
       </header>
 
       <main ref={mainRef} className="flex-grow overflow-y-auto p-4 bg-transparent">
