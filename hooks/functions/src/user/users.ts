@@ -47,8 +47,10 @@ export const updateMyProfile = functions
 
     // 4. Update Firestore Document
     try {
-      // Use 'update' instead of 'set' with merge to avoid overwriting the entire document.
-      await userRef.update(updatePayload);
+      // Use 'set' with merge:true to make the operation more robust.
+      // It will update the document if it exists, or create it if it doesn't,
+      // preventing errors from potential race conditions on user creation.
+      await userRef.set(updatePayload, { merge: true });
       functions.logger.info(`Profile completed and updated for user: ${userId}`);
       return {
         success: true,
