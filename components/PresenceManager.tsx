@@ -45,11 +45,12 @@ const PresenceManager: React.FC<PresenceManagerProps> = ({ user }) => {
       });
     });
 
-    // Cleanup function when the component unmounts (e.g., user logs out).
+    // Cleanup function when the component unmounts.
     return () => {
-      connectedRef.off('value', listener); // Remove the connection listener.
-      // Explicitly set the user to offline on a clean exit.
-      userStatusDatabaseRef.set(isOfflineForDatabase);
+      // The `onDisconnect` hook registered with Firebase is now solely responsible for setting
+      // the user to offline when the connection is terminated (e.g., on logout, app close, or internet loss).
+      // We only need to remove the connection listener here.
+      connectedRef.off('value', listener);
     };
     
     // This effect should re-run if the user object changes (e.g., on login/logout).
