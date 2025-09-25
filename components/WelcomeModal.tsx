@@ -28,6 +28,32 @@ const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
+/**
+ * A helper function that calls the `updateMyProfile` cloud function with a retry mechanism.
+ * It specifically retries on 'internal' or 'unavailable' errors, which are often transient.
+ * @param data The user profile data to send.
+ * @param retries The number of retries to attempt.
+ * @param delay The initial delay between retries in milliseconds.
+ * @returns A promise that resolves on success or rejects after all retries fail.
+ */
+const callUpdateProfileWithRetry = async (data: { name: string; city: string; mobile?: string }, retries = 2, delay = 1500): Promise<any> => {
+    const updateProfile = functions.httpsCallable('updateMyProfile');
+    try {
+        return await updateProfile(data);
+    } catch (err: any) {
+        // Only retry on transient server/network errors.
+        if ((err.code === 'internal' || err.code === 'unavailable') && retries > 0) {
+            console.warn(`Cloud function call failed with code: ${err.code}. Retrying in ${delay}ms... (${retries} retries left)`);
+            await new Promise(res => setTimeout(res, delay));
+            // Retry with one less attempt and double the delay for exponential backoff.
+            return callUpdateProfileWithRetry(data, retries - 1, delay * 2);
+        } else {
+            // If it's not a retriable error or retries are exhausted, re-throw the error.
+            throw err;
+        }
+    }
+};
+
 
 const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPrivacyPolicy, onOnboardingComplete }) => {
   const [name, setName] = useState(user.name || '');
@@ -71,14 +97,12 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
         updateData.mobile = mobile.trim();
       }
       
-      const updateProfile = functions.httpsCallable('updateMyProfile');
-      await updateProfile(updateData);
-      // After successful submission, the component will remain in a loading state
-      // until the parent component (App.tsx) receives the update from Firestore
-      // via its onSnapshot listener and unmounts this modal.
+      // Use the new retry function
+      await callUpdateProfileWithRetry(updateData);
+      
       onOnboardingComplete();
     } catch (err: any) {
-      console.error("Error updating user profile:", err);
+      console.error("Error updating user profile after retries:", err);
       // Provide specific, user-friendly error messages based on the error code from the backend.
       switch (err.code) {
         case 'already-exists':
@@ -86,7 +110,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
           setError(err.message); // Backend provides user-friendly messages for these.
           break;
         case 'internal':
-          setError("An internal error occurred. Please try again later or contact support."); // A more helpful message.
+          // This message is now shown only after all retries have failed.
+          setError("An internal server error occurred. Please try again later or contact support.");
           break;
         case 'unavailable':
           setError("सर्वर से कनेक्ट नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।");

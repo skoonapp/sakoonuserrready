@@ -13,6 +13,14 @@ import axios from "axios";
 import { initializeCashfree, CASHFREE_WEBHOOK_SECRET, db } from "../config";
 import { setCORSHeaders } from "../common/cors";
 
+
+// --- Module-level Initialization ---
+// Initialize Cashfree once per function instance (on cold start). This is more efficient
+// and prevents initialization errors from causing CORS issues during a request.
+initializeCashfree();
+// --- End Initialization ---
+
+
 // Enhanced purchase processing with better error handling
 const processPurchase = async (paymentNotes: any, paymentId: string, eventData: any) => {
   const { userId, planType, planDetails: rawPlanDetails } = paymentNotes;
@@ -104,8 +112,6 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
 // CORS-enabled createCashfreeOrder function
 export const createCashfreeOrder = functions.region('asia-south1').https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
-
-  initializeCashfree();
 
   const { amount, planType, planDetails } = data;
 
