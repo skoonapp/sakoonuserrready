@@ -200,12 +200,14 @@ webhookApp.get("/", (req: any, res: any) => res.status(200).send("OK"));
 // FIX: Using express.json with a 'verify' function to capture the raw body for webhook signature
 // verification. This workaround resolves a persistent TypeScript overload error related to
 // express.raw() and type conflicts within the Firebase Functions environment.
+// FIX: Cast express.json() middleware to 'any' to resolve a complex TypeScript type
+// conflict between express and firebase-functions, which was causing an overload error.
 webhookApp.post("/", express.json({
   verify: (req: any, res, buf) => {
     // Save the raw body buffer to a new property on the request object
     req.rawBody = buf;
   },
-}), async (req: any, res: any) => {
+}) as any, async (req: any, res: any) => {
   try {
     const payloadBuffer = req.rawBody as Buffer;
     // The JSON body is already parsed by express.json(), so we can use req.body directly.
