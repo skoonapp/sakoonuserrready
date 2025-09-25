@@ -1,13 +1,16 @@
-import * as functions from "firebase-functions/v1";
+// FIX: Using specific named imports for firebase-functions to avoid polluting the global namespace.
+import { region, https, logger } from "firebase-functions/v1";
 import * as admin from "firebase-admin";
-// FIX: Changed import to use express namespace to resolve type errors.
-import * as express from "express";
+// FIX: Using a default import for the express app and specific type imports to resolve conflicts with firebase-functions types.
+import express from "express";
+// FIX: Aliased express types to prevent conflicts with global types from firebase-functions.
+import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { Cashfree } from "cashfree-pg";
 // FIX: Use an ES module import for 'axios' instead of 'require' to resolve the type error and maintain code consistency.
 import axios from "axios";
-import { initializeCashfree, getCashfreeWebhookSecret, db } from "../config";
+import { initializeCashfree, CASHFREE_WEBHOOK_SECRET, db } from "../config";
 import { setCORSHeaders } from "../common/cors";
 
 // Enhanced purchase processing with better error handling
@@ -15,7 +18,7 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
   const { userId, planType, planDetails: rawPlanDetails } = paymentNotes;
 
   if (!userId) {
-    throw new functions.https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
+    throw new https.HttpsError("invalid-argument", "Payment notes में User ID नहीं है।");
   }
 
   // Handle planDetails which might be a string or an object
@@ -29,7 +32,7 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
   await db.runTransaction(async (transaction: admin.firestore.Transaction) => {
     const paymentDoc = await transaction.get(paymentRef);
     if (paymentDoc.exists) {
-      functions.logger.warn(`Payment ${paymentId} पहले ही प्रोसेस हो चुका है।`);
+      logger.warn(`Payment ${paymentId} पहले ही प्रोसेस हो चुका है।`);
       return;
     }
 
@@ -99,20 +102,20 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
 };
 
 // CORS-enabled createCashfreeOrder function
-export const createCashfreeOrder = functions.region('asia-south1').https.onCall(async (data, context) => {
-  if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
+export const createCashfreeOrder = region('asia-south1').https.onCall(async (data, context) => {
+  if (!context.auth) throw new https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
 
   initializeCashfree();
 
   const { amount, planType, planDetails } = data;
 
-  functions.logger.info("Order creation request received:", { userId: context.auth.uid, amount, planType });
+  logger.info("Order creation request received:", { userId: context.auth.uid, amount, planType });
 
-  if (!amount || amount <= 0) throw new functions.https.HttpsError("invalid-argument", "Invalid amount");
-  if (!planType || !["mt", "dt"].includes(planType)) throw new functions.https.HttpsError("invalid-argument", "Invalid plan type");
+  if (!amount || amount <= 0) throw new https.HttpsError("invalid-argument", "Invalid amount");
+  if (!planType || !["mt", "dt"].includes(planType)) throw new https.HttpsError("invalid-argument", "Invalid plan type");
 
   const userDoc = await db.collection("users").doc(context.auth.uid).get();
-  if (!userDoc.exists) throw new functions.https.HttpsError("not-found", "User नहीं मिला।");
+  if (!userDoc.exists) throw new https.HttpsError("not-found", "User नहीं मिला।");
 
   const userData = userDoc.data()!;
 
@@ -163,7 +166,7 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
       });
     }
     
-    functions.logger.info("Cashfree order created successfully:", { orderId: orderRequest.order_id, userId: context.auth.uid });
+    logger.info("Cashfree order created successfully:", { orderId: orderRequest.order_id, userId: context.auth.uid });
     
     return {
       success: true,
@@ -171,19 +174,19 @@ export const createCashfreeOrder = functions.region('asia-south1').https.onCall(
       orderId: response.data.order_id
     };
   } catch (error: any) {
-    functions.logger.error("Cashfree order creation failed:", {
+    logger.error("Cashfree order creation failed:", {
       userId: context.auth.uid,
       errorMessage: error.message,
       errorResponse: error.response?.data,
     });
-    throw new functions.https.HttpsError("internal", error.response?.data?.message || "पेमेंट शुरू करने में विफल। कृपया फिर से प्रयास करें।");
+    throw new https.HttpsError("internal", error.response?.data?.message || "पेमेंट शुरू करने में विफल। कृपया फिर से प्रयास करें।");
   }
 });
 
-const webhookApp: express.Express = express();
+const webhookApp = express();
 
-// FIX: Used imported Request, Response, NextFunction types to ensure correct type checking.
-webhookApp.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
+// FIX: To resolve type conflicts, register all middleware before defining routes. This ensures proper type inference.
+webhookApp.use((req: any, res: any, next: NextFunction) => {
   if (req.method === 'OPTIONS') {
     setCORSHeaders(res, req.get('Origin'));
     res.status(204).send('');
@@ -193,18 +196,18 @@ webhookApp.use((req: express.Request, res: express.Response, next: express.NextF
   next();
 });
 
-// FIX: Used imported Request, Response types.
-webhookApp.get("/", (req: express.Request, res: express.Response) => res.status(200).send("OK"));
+// FIX: Use express.raw() as app-level middleware before routes. This is necessary for webhook signature verification.
 webhookApp.use(express.raw({ type: "application/json" }));
 
-// FIX: Used imported Request, Response types.
-webhookApp.post("/", async (req: express.Request, res: express.Response) => {
+webhookApp.get("/", (req: any, res: any) => res.status(200).send("OK"));
+
+webhookApp.post("/", async (req: any, res: any) => {
   try {
     const payloadBuffer = req.body as Buffer;
     const eventData = JSON.parse(payloadBuffer.toString());
 
     if (eventData.type === "TEST") {
-      functions.logger.info("Received Cashfree TEST webhook.");
+      logger.info("Received Cashfree TEST webhook.");
       return res.status(200).json({ success: true, message: "Test webhook received" });
     }
 
@@ -212,21 +215,21 @@ webhookApp.post("/", async (req: express.Request, res: express.Response) => {
     const timestamp = req.headers["x-webhook-timestamp"] as string;
 
     if (!signature || !timestamp) {
-      functions.logger.warn("Missing webhook headers.");
+      logger.warn("Missing webhook headers.");
       return res.status(400).json({ success: false, message: "Missing required webhook headers." });
     }
 
     const expectedSignature = crypto
-      .createHmac("sha256", getCashfreeWebhookSecret())
+      .createHmac("sha256", CASHFREE_WEBHOOK_SECRET)
       .update(timestamp + payloadBuffer.toString())
       .digest("base64");
 
     if (!crypto.timingSafeEqual(Buffer.from(signature, 'base64'), Buffer.from(expectedSignature, 'base64'))) {
-      functions.logger.error("Webhook signature verification failed.");
+      logger.error("Webhook signature verification failed.");
       return res.status(401).json({ success: false, message: "Invalid webhook signature." });
     }
     
-    functions.logger.info("Webhook verified successfully:", { type: eventData.type, orderId: eventData.data?.order?.order_id });
+    logger.info("Webhook verified successfully:", { type: eventData.type, orderId: eventData.data?.order?.order_id });
 
     if (eventData.data?.order?.order_status === "PAID") {
       try {
@@ -238,17 +241,18 @@ webhookApp.post("/", async (req: express.Request, res: express.Response) => {
         };
         const paymentId = eventData.data.payment.cf_payment_id.toString();
         await processPurchase(paymentNotes, paymentId, eventData);
-        functions.logger.info(`Payment processed successfully for order: ${eventData.data.order.order_id}`);
+        logger.info(`Payment processed successfully for order: ${eventData.data.order.order_id}`);
       } catch (procError) {
-        functions.logger.error("Payment processing failed inside webhook:", procError);
+        logger.error("Payment processing failed inside webhook:", procError);
       }
     }
 
     return res.status(200).json({ success: true, message: "Webhook processed." });
   } catch (error: any) {
-    functions.logger.error("Webhook handler outer error:", error);
+    logger.error("Webhook handler outer error:", error);
     return res.status(500).json({ success: false, message: "Internal Server Error", error: error.message });
   }
 });
 
-export const cashfreeWebhook = functions.region('asia-south1').https.onRequest(webhookApp as any);
+// FIX: Cast express app to 'any' to satisfy the Firebase Functions onRequest type signature.
+export const cashfreeWebhook = region('asia-south1').https.onRequest(webhookApp as any);

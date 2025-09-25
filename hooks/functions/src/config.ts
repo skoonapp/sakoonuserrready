@@ -16,118 +16,38 @@ export const storage = admin.storage();
 // Export admin for use in other files
 export { admin };
 
-/**
- * Get ZegoCloud App ID from Firebase Functions config or environment variables
- */
-export function getZegoAppId(): number {
-  // First try Firebase Functions config
-  const config = functions.config();
-  let appId = config.zego?.app_id;
-  
-  // Fallback to environment variable
-  if (!appId) {
-    appId = process.env.ZEGO_APP_ID;
-  }
-  
-  if (!appId) {
-    throw new Error('ZegoCloud App ID not configured. Please set it using Firebase Functions config or ZEGO_APP_ID environment variable');
-  }
-  
-  return parseInt(appId, 10);
+// --- Modern Configuration using process.env ---
+// These variables must be set in your Firebase project's environment configuration.
+// Use `firebase functions:config:set zego.app_id="YOUR_ID"` or set them in the GCP console.
+
+export const ZEGO_APP_ID = parseInt(process.env.ZEGO_APP_ID || '', 10);
+export const ZEGO_SERVER_SECRET = process.env.ZEGO_SERVER_SECRET || '';
+
+const CASHFREE_CLIENT_ID = process.env.CASHFREE_CLIENT_ID || '';
+const CASHFREE_CLIENT_SECRET = process.env.CASHFREE_CLIENT_SECRET || '';
+export const CASHFREE_WEBHOOK_SECRET = process.env.CASHFREE_WEBHOOK_SECRET || '';
+
+// --- Validation ---
+if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET) {
+  functions.logger.error('Zego App ID or Server Secret is not configured in environment variables.');
+}
+if (!CASHFREE_CLIENT_ID || !CASHFREE_CLIENT_SECRET || !CASHFREE_WEBHOOK_SECRET) {
+  functions.logger.error('Cashfree environment variables (CLIENT_ID, CLIENT_SECRET, WEBHOOK_SECRET) are not fully configured.');
 }
 
-/**
- * Get ZegoCloud Server Secret from Firebase Functions config or environment variables
- */
-export function getZegoServerSecret(): string {
-  // First try Firebase Functions config
-  const config = functions.config();
-  let serverSecret = config.zego?.server_secret;
-  
-  // Fallback to environment variable
-  if (!serverSecret) {
-    serverSecret = process.env.ZEGO_SERVER_SECRET;
-  }
-  
-  if (!serverSecret) {
-    throw new Error('ZegoCloud Server Secret not configured. Please set it using Firebase Functions config or ZEGO_SERVER_SECRET environment variable');
-  }
-  
-  return serverSecret;
-}
-
-/**
- * Get Cashfree Client ID from Firebase Functions config or environment variables
- */
-export function getCashfreeClientId(): string {
-  const config = functions.config();
-  let clientId = config.cashfree?.client_id;
-  
-  // Fallback to environment variable
-  if (!clientId) {
-    clientId = process.env.CASHFREE_CLIENT_ID;
-  }
-  
-  if (!clientId) {
-    throw new Error('Cashfree Client ID not configured. Please set it using Firebase Functions config or CASHFREE_CLIENT_ID environment variable');
-  }
-  
-  return clientId;
-}
-
-/**
- * Get Cashfree Client Secret from Firebase Functions config or environment variables
- */
-export function getCashfreeClientSecret(): string {
-  const config = functions.config();
-  let clientSecret = config.cashfree?.client_secret;
-  
-  // Fallback to environment variable
-  if (!clientSecret) {
-    clientSecret = process.env.CASHFREE_CLIENT_SECRET;
-  }
-  
-  if (!clientSecret) {
-    throw new Error('Cashfree Client Secret not configured. Please set it using Firebase Functions config or CASHFREE_CLIENT_SECRET environment variable');
-  }
-  
-  return clientSecret;
-}
-
-/**
- * Get Cashfree Webhook Secret from Firebase Functions config or environment variables
- */
-export function getCashfreeWebhookSecret(): string {
-  const config = functions.config();
-  let webhookSecret = config.cashfree?.webhook_secret;
-  
-  // Fallback to environment variable
-  if (!webhookSecret) {
-    webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET;
-  }
-  
-  if (!webhookSecret) {
-    throw new Error('Cashfree Webhook Secret not configured. Please set it using Firebase Functions config or CASHFREE_WEBHOOK_SECRET environment variable');
-  }
-  
-  return webhookSecret;
-}
 
 /**
  * Initialize Cashfree SDK with credentials
  */
 export function initializeCashfree(): void {
   try {
-    const clientId = getCashfreeClientId();
-    const clientSecret = getCashfreeClientSecret();
-    
-    // Determine environment (sandbox for development, production for live)
-    const environment = process.env.NODE_ENV === 'production' ? 'production' : 'sandbox';
+    // FIX: Use string values for environment to avoid type errors with Cashfree SDK.
+    const environment = process.env.NODE_ENV === 'production' ? "PRODUCTION" : "SANDBOX";
     
     // Note: Check Cashfree SDK documentation for correct property names
     // The properties might be different in newer versions
-    (Cashfree as any).XClientId = clientId;
-    (Cashfree as any).XClientSecret = clientSecret;
+    (Cashfree as any).XClientId = CASHFREE_CLIENT_ID;
+    (Cashfree as any).XClientSecret = CASHFREE_CLIENT_SECRET;
     (Cashfree as any).XEnvironment = environment;
     
     functions.logger.info(`Cashfree initialized successfully in ${environment} mode`);
@@ -135,12 +55,4 @@ export function initializeCashfree(): void {
     functions.logger.error('Failed to initialize Cashfree:', error);
     throw error;
   }
-}
-
-// Optional: Add other configuration getters as needed
-export function getProjectConfig() {
-  return {
-    zegoAppId: getZegoAppId(),
-    zegoServerSecret: getZegoServerSecret(),
-  };
 }

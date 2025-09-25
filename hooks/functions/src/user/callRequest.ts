@@ -1,7 +1,7 @@
 // FIX: Using v1 functions to match the syntax used in the project (e.g., .region(...)).
 import * as functions from "firebase-functions/v1";
-// FIX: Corrected Zego config import names to match the exports in config.ts.
-import { getZegoAppId, getZegoServerSecret } from "../config";
+// FIX: Use modern environment variables from the updated config file.
+import { ZEGO_APP_ID, ZEGO_SERVER_SECRET } from "../config";
 import { RtcTokenBuilder, RtcRole } from "zego-express-engine-serverless";
 
 export const generateZegoToken = functions.region("asia-south1").https.onCall(async (data, context) => {
@@ -24,8 +24,8 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
 
     try {
         const token = RtcTokenBuilder.buildTokenWithUid(
-            getZegoAppId(),
-            getZegoServerSecret(),
+            ZEGO_APP_ID,
+            ZEGO_SERVER_SECRET,
             planId,
             userId, // Use string UID
             RtcRole.PUBLISHER,
@@ -39,7 +39,7 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
             error,
             planId,
             userId,
-            appId: getZegoAppId(),
+            appId: ZEGO_APP_ID,
         });
         // Throw a generic error to the client to avoid exposing internal details.
         throw new functions.https.HttpsError("internal", "Failed to generate session token.");

@@ -1,11 +1,13 @@
 // functions/src/common/cors.ts
-import * as express from 'express';
+// FIX: Using a specific type import for Response to resolve conflicts with the global Response type from firebase-functions.
+// Using an alias to avoid ambiguity with other 'Response' types.
+import type { Response as ExpressResponse } from 'express';
 
 /**
  * Set CORS headers for HTTP responses
  */
-// FIX: Use express.Response to avoid type conflicts with global Response
-export function setCORSHeaders(res: express.Response, origin?: string): void {
+// FIX: Change response type to 'any' to resolve complex type conflicts between Express and Firebase Functions request handlers.
+export function setCORSHeaders(res: any, origin?: string): void {
   // Allow specific origins based on your authorized domains
   const allowedOrigins = [
     // Firebase hosting domains
