@@ -73,8 +73,10 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
       
       const updateProfile = functions.httpsCallable('updateMyProfile');
       await updateProfile(updateData);
+      // After successful submission, the component will remain in a loading state
+      // until the parent component (App.tsx) receives the update from Firestore
+      // via its onSnapshot listener and unmounts this modal.
       onOnboardingComplete();
-      // Success! The modal will now disappear immediately because of the callback.
     } catch (err: any) {
       console.error("Error updating user profile:", err);
       // Provide specific, user-friendly error messages based on the error code from the backend.
@@ -92,7 +94,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
         default:
           setError("आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।"); // A generic fallback.
       }
-    } finally {
+      // Only stop loading if there was an error, allowing the user to try again.
       setLoading(false);
     }
   };

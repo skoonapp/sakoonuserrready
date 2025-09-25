@@ -94,9 +94,13 @@ const App: React.FC = () => {
     
     const handleOnboardingComplete = useCallback(() => {
         if (user) {
-            // Optimistically update the user state to immediately hide the welcome modal.
-            // The snapshot listener will still get the "official" update from Firestore later.
-            setUser(prevUser => prevUser ? { ...prevUser, hasSeenWelcome: true } : null);
+            // This function is called upon successful form submission in WelcomeModal.
+            // Previously, it performed an optimistic update of the UI.
+            // To ensure the UI state is always driven by the backend source of truth,
+            // the optimistic update is removed. Now, the app will wait for the
+            // Firestore onSnapshot listener to receive the `hasSeenWelcome: true`
+            // update from the database, which then triggers the UI change.
+            // This prevents potential race conditions and ensures data consistency.
         }
     }, [user]);
 
