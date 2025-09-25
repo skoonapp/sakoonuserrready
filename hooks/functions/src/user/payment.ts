@@ -197,12 +197,10 @@ webhookApp.use((req: any, res: any, next: NextFunction) => {
 
 webhookApp.get("/", (req: any, res: any) => res.status(200).send("OK"));
 
-// FIX: Apply raw body parser as middleware for the whole app to resolve type conflicts on the .post() method.
-// This is safe because this Express app only handles this one POST route.
-webhookApp.use(express.raw({ type: "application/json" }));
-
+// FIX: The raw body parser is now applied directly to the POST route. This resolves a TypeScript
+// overload error on `app.use()` and ensures the raw payload is available for webhook signature verification.
 // The raw body is needed for webhook signature verification.
-webhookApp.post("/", async (req: any, res: any) => {
+webhookApp.post("/", express.raw({ type: "application/json" }), async (req: any, res: any) => {
   try {
     const payloadBuffer = req.body as Buffer;
     const eventData = JSON.parse(payloadBuffer.toString());
