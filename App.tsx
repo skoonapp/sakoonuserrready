@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
 import { auth, db } from './utils/firebase';
 import type { User } from './types';
 import { FREE_MESSAGES_ON_SIGNUP } from './constants';
@@ -18,8 +18,10 @@ const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
     const [showPolicy, setShowPolicy] = useState<'terms' | 'privacy' | null>(null);
-    // This flag helps prevent race conditions during the onboarding process.
-    const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
+    // Use a ref to track the onboarding process. This is the key fix.
+    // A ref's value can be changed without causing a component re-render or
+    // making the useEffect hook re-run, which solves the race condition.
+    const isCompletingOnboardingRef = useRef(false);
 
     // Hide initial static splash screen once React app is ready
     useEffect(() => {
@@ -30,7 +32,7 @@ const App: React.FC = () => {
         }
     }, []);
 
-    // Auth state and user data listener
+    // Auth state and user data listener. Runs only ONCE on component mount.
     useEffect(() => {
         let unsubscribeUser: () => void = () => {};
 
@@ -46,23 +48,23 @@ const App: React.FC = () => {
                         if (snapshot.exists) {
                             const data = snapshot.data() as User;
                             
-                            // If we've just submitted the welcome form, we expect
-                            // `hasSeenWelcome` to become true. We ignore any snapshot
-                            // that arrives before this change is reflected to prevent
-                            // getting stuck on the welcome screen due to propagation delays.
-                            if (isCompletingOnboarding && (data.hasSeenWelcome === false || data.hasSeenWelcome === undefined)) {
-                                return; // Wait for the correct data with hasSeenWelcome: true to arrive.
+                            // If the onboarding ref is set (meaning the user just submitted the form)
+                            // and the data from Firestore is still stale (`hasSeenWelcome` is false),
+                            // we must IGNORE this snapshot and wait for the next one with the correct data.
+                            if (isCompletingOnboardingRef.current && (data.hasSeenWelcome === false || data.hasSeenWelcome === undefined)) {
+                                return; // This is the definitive fix: Wait for the correct data.
+                            }
+
+                            // If we receive the correct data (`hasSeenWelcome` is true) after submission,
+                            // we reset our ref so this logic doesn't run on subsequent snapshots.
+                            if (isCompletingOnboardingRef.current && data.hasSeenWelcome === true) {
+                                isCompletingOnboardingRef.current = false;
                             }
 
                             setUser(data);
-                             // Reset the flag once we have received the correct update.
-                            if (isCompletingOnboarding) {
-                                setIsCompletingOnboarding(false);
-                            }
 
                         } else {
-                            // This is a new user (or their doc was deleted).
-                            // Create their document in Firestore.
+                            // This is a new user (or their doc was deleted). Create their document.
                             const newUser: User = {
                                 uid: firebaseUser.uid,
                                 name: firebaseUser.displayName || 'New User',
@@ -75,31 +77,27 @@ const App: React.FC = () => {
                                 hasSeenWelcome: false,
                             };
                             try {
-                                // Create the document. The onSnapshot listener will automatically
-                                // receive this new data and update the state.
+                                // The onSnapshot listener will automatically receive this new data.
                                 await userDocRef.set(newUser);
                                 setUser(newUser);
                             } catch (error) {
                                 console.error("Failed to create new user document:", error);
-                                // If creation fails, we can't proceed. Log the user out.
                                 auth.signOut();
                                 setUser(null);
                             }
                         }
-                        // Crucially, we stop initializing as soon as we have the first bit of data.
+                        // Stop initializing as soon as we have the first bit of data.
                         setIsInitializing(false);
                     },
                     (error) => {
-                        // Handle errors with the listener itself.
                         console.error("Firestore onSnapshot listener error:", error);
-                        // Log out and stop initializing to show the login screen.
                         auth.signOut();
                         setUser(null);
                         setIsInitializing(false);
                     }
                 );
             } else {
-                // No user is authenticated. We can immediately stop initializing.
+                // No user is authenticated.
                 setUser(null);
                 setIsInitializing(false);
             }
@@ -110,15 +108,13 @@ const App: React.FC = () => {
             unsubscribeAuth();
             unsubscribeUser();
         };
-    }, [isCompletingOnboarding]);
+    }, []); // The empty dependency array ensures this effect runs only ONCE.
     
-    const handleOnboardingComplete = useCallback(() => {
-        // Instead of an optimistic update, we now set a flag.
-        // This tells our onSnapshot listener to wait for the database
-        // to confirm `hasSeenWelcome: true` before updating the UI,
-        // preventing race conditions.
-        setIsCompletingOnboarding(true);
-    }, []);
+    const handleOnboardingComplete = () => {
+        // Set the ref to true. This tells our stable onSnapshot listener to
+        // start watching for the `hasSeenWelcome: true` update.
+        isCompletingOnboardingRef.current = true;
+    };
 
     // --- Render Logic ---
     if (isInitializing) {
