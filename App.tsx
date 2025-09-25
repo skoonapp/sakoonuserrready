@@ -18,6 +18,8 @@ const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
     const [showPolicy, setShowPolicy] = useState<'terms' | 'privacy' | null>(null);
+    // This flag helps prevent race conditions during the onboarding process.
+    const [isCompletingOnboarding, setIsCompletingOnboarding] = useState(false);
 
     // Hide initial static splash screen once React app is ready
     useEffect(() => {
@@ -42,8 +44,22 @@ const App: React.FC = () => {
                 unsubscribeUser = userDocRef.onSnapshot(
                     async (snapshot) => {
                         if (snapshot.exists) {
-                            // The user document exists, update our state.
-                            setUser(snapshot.data() as User);
+                            const data = snapshot.data() as User;
+                            
+                            // If we've just submitted the welcome form, we expect
+                            // `hasSeenWelcome` to become true. We ignore any snapshot
+                            // that arrives before this change is reflected to prevent
+                            // getting stuck on the welcome screen due to propagation delays.
+                            if (isCompletingOnboarding && (data.hasSeenWelcome === false || data.hasSeenWelcome === undefined)) {
+                                return; // Wait for the correct data with hasSeenWelcome: true to arrive.
+                            }
+
+                            setUser(data);
+                             // Reset the flag once we have received the correct update.
+                            if (isCompletingOnboarding) {
+                                setIsCompletingOnboarding(false);
+                            }
+
                         } else {
                             // This is a new user (or their doc was deleted).
                             // Create their document in Firestore.
@@ -94,18 +110,15 @@ const App: React.FC = () => {
             unsubscribeAuth();
             unsubscribeUser();
         };
-    }, []);
+    }, [isCompletingOnboarding]);
     
     const handleOnboardingComplete = useCallback(() => {
-        if (user) {
-            // Perform a safe optimistic update.
-            // This is called after the backend function successfully completes.
-            // We can confidently update the UI now to provide instant feedback
-            // and remove the welcome modal. The Firestore snapshot listener
-            // will soon receive the same data, ensuring consistency.
-            setUser(currentUser => currentUser ? { ...currentUser, hasSeenWelcome: true } : null);
-        }
-    }, [user]);
+        // Instead of an optimistic update, we now set a flag.
+        // This tells our onSnapshot listener to wait for the database
+        // to confirm `hasSeenWelcome: true` before updating the UI,
+        // preventing race conditions.
+        setIsCompletingOnboarding(true);
+    }, []);
 
     // --- Render Logic ---
     if (isInitializing) {
