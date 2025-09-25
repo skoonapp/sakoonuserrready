@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useRef } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { auth, db } from './utils/firebase';
 import type { User } from './types';
 import { FREE_MESSAGES_ON_SIGNUP } from './constants';
@@ -18,10 +18,6 @@ const App: React.FC = () => {
     const [user, setUser] = useState<User | null>(null);
     const [isInitializing, setIsInitializing] = useState(true);
     const [showPolicy, setShowPolicy] = useState<'terms' | 'privacy' | null>(null);
-    // Use a ref to track the onboarding process. This is the key fix.
-    // A ref's value can be changed without causing a component re-render or
-    // making the useEffect hook re-run, which solves the race condition.
-    const isCompletingOnboardingRef = useRef(false);
 
     // Hide initial static splash screen once React app is ready
     useEffect(() => {
@@ -47,20 +43,8 @@ const App: React.FC = () => {
                     async (snapshot) => {
                         if (snapshot.exists) {
                             const data = snapshot.data() as User;
-                            
-                            // If the onboarding ref is set (meaning the user just submitted the form)
-                            // and the data from Firestore is still stale (`hasSeenWelcome` is false),
-                            // we must IGNORE this snapshot and wait for the next one with the correct data.
-                            if (isCompletingOnboardingRef.current && (data.hasSeenWelcome === false || data.hasSeenWelcome === undefined)) {
-                                return; // This is the definitive fix: Wait for the correct data.
-                            }
-
-                            // If we receive the correct data (`hasSeenWelcome` is true) after submission,
-                            // we reset our ref so this logic doesn't run on subsequent snapshots.
-                            if (isCompletingOnboardingRef.current && data.hasSeenWelcome === true) {
-                                isCompletingOnboardingRef.current = false;
-                            }
-
+                            // Simplified Logic: Always trust the data from Firestore.
+                            // The optimistic update is handled separately in onOnboardingComplete.
                             setUser(data);
 
                         } else {
@@ -111,9 +95,12 @@ const App: React.FC = () => {
     }, []); // The empty dependency array ensures this effect runs only ONCE.
     
     const handleOnboardingComplete = () => {
-        // Set the ref to true. This tells our stable onSnapshot listener to
-        // start watching for the `hasSeenWelcome: true` update.
-        isCompletingOnboardingRef.current = true;
+        // Confirmed Optimistic Update: After the backend call in WelcomeModal succeeds,
+        // we immediately update the state here. This provides instant feedback to the user
+        // and navigates them to the main app without waiting for the Firestore listener.
+        if (user) {
+            setUser(currentUser => currentUser ? { ...currentUser, hasSeenWelcome: true } : null);
+        }
     };
 
     // --- Render Logic ---

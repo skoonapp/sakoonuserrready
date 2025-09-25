@@ -33,8 +33,23 @@ export const updateMyProfile = functions
       throw new functions.https.HttpsError('invalid-argument', 'A valid 10-digit mobile number is required.');
     }
 
-    // 3. Prepare Data Payload for Firestore
     const userRef = db.collection('users').doc(userId);
+
+    // 3. (NEW) Mobile Uniqueness Check: If a mobile number is provided, ensure it's not already in use by another user.
+    if (mobile) {
+        const trimmedMobile = mobile.trim();
+        const mobileQuery = await db.collection('users').where('mobile', '==', trimmedMobile).limit(1).get();
+        
+        // If the query finds a user AND that user's ID is different from the current user's ID, then the number is taken.
+        if (!mobileQuery.empty && mobileQuery.docs[0].id !== userId) {
+            throw new functions.https.HttpsError(
+                'already-exists',
+                'This mobile number is already linked to another account. Please use a different one.'
+            );
+        }
+    }
+
+    // 4. Prepare Data Payload for Firestore
     const updatePayload: { [key: string]: any } = {
       name: name.trim(),
       city: city.trim(),
@@ -45,7 +60,7 @@ export const updateMyProfile = functions
       updatePayload.mobile = mobile.trim();
     }
 
-    // 4. Update Firestore Document
+    // 5. Update Firestore Document
     try {
       // Use 'set' with merge:true to make the operation more robust.
       // It will update the document if it exists, or create it if it doesn't,
