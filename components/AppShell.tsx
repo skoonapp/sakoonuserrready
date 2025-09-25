@@ -430,40 +430,55 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     }, [touchStartX, touchStartY, activeIndex, isSwiping, pullStart, isRefreshing, views.length]);
 
     const handleTouchEnd = useCallback(() => {
+        // Apply transition for animations after the gesture ends.
         if (viewsContainerRef.current) {
             viewsContainerRef.current.style.transition = 'transform 0.3s ease-in-out';
         }
-
-        // PTR End Logic
+    
+        // --- Pull-to-Refresh End Logic ---
+        // Check if the user pulled down far enough and wasn't swiping horizontally.
         if (pullStart !== null && pullDistance > PULL_THRESHOLD && isSwiping === false) {
             setIsRefreshing(true);
-            setTimeout(() => window.location.reload(), 500);
+            
+            // Simulate a refresh. Since the app's data is already real-time via Firestore's
+            // onSnapshot listeners, this provides the user with the expected visual feedback
+            // of a refresh without a jarring full-page reload.
+            setTimeout(() => {
+                setIsRefreshing(false);
+                setPullDistance(0); // Animate the view back to its original position.
+            }, 1500); // A 1.5-second delay feels like a real refresh.
+    
         } else {
+            // If not refreshing, ensure the view snaps back to its original vertical position.
             setPullDistance(0);
         }
-
-        // Swipe End Logic
+    
+        // --- Swipe Navigation End Logic ---
         if (isSwiping === true) {
             const swipeThreshold = viewsContainerRef.current ? viewsContainerRef.current.clientWidth / 4 : 50;
             const finalDeltaX = touchDeltaXRef.current;
-
+    
             if (finalDeltaX > swipeThreshold && activeIndex > 0) {
+                // Swipe right to go to the previous view.
                 navigateTo(activeIndex - 1);
             } else if (finalDeltaX < -swipeThreshold && activeIndex < views.length - 1) {
+                // Swipe left to go to the next view.
                 navigateTo(activeIndex + 1);
             } else {
+                // If the swipe was not far enough, snap back to the current view.
                 if (viewsContainerRef.current) {
                     viewsContainerRef.current.style.transform = `translateX(-${activeIndex * 100}%)`;
                 }
             }
         }
         
+        // Reset all gesture tracking states for the next interaction.
         setTouchStartX(null);
         setTouchStartY(null);
         setIsSwiping(null);
         setPullStart(null);
         touchDeltaXRef.current = 0;
-    }, [isSwiping, pullStart, pullDistance, activeIndex, navigateTo, views.length, isRefreshing]);
+    }, [isSwiping, pullStart, pullDistance, activeIndex, navigateTo, views.length]);
 
 
     const renderViewByIndex = useCallback((index: number) => {
@@ -535,7 +550,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         className="flex h-full"
                         style={{ 
                             transform: `translateX(-${activeIndex * 100}%) translateY(${isRefreshing ? PULL_THRESHOLD : pullDistance}px)`,
-                            transition: pullStart === null ? 'transform 0.3s ease-in-out' : 'none',
+                            transition: pullStart === null || isRefreshing === false ? 'transform 0.3s ease-in-out' : 'none',
                         }}
                     >
                         {views.map((viewName, index) => (
