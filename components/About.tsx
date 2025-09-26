@@ -54,9 +54,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({
   isDarkMode,
   toggleDarkMode,
 }) => {
-  const [openAccordion, setOpenAccordion] = useState<'faq' | 'contact' | null>(null);
+  const [openAccordion, setOpenAccordion] = useState<'about' | 'faq' | 'contact' | null>(null);
 
-  const handleAccordionToggle = (section: 'faq' | 'contact') => {
+  const handleAccordionToggle = (section: 'about' | 'faq' | 'contact') => {
       setOpenAccordion(prev => (prev === section ? null : section));
   };
 
@@ -85,19 +85,9 @@ const ProfileView: React.FC<ProfileViewProps> = ({
         </section>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md divide-y divide-slate-200 dark:border-slate-700">
-            {/* About Section */}
+            {/* Testimonials Section */}
             <div className="p-6">
-                <section id="about">
-                  <div className="container mx-auto">
-                    <div className="flex flex-col sm:flex-row justify-between items-center mb-8 gap-4">
-                      <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100 text-center sm:text-left">
-                        हमारे बारे में
-                      </h2>
-                    </div>
-                    <p className="text-base text-slate-600 dark:text-slate-400 max-w-3xl mx-auto text-center leading-relaxed">
-                      SakoonApp एक सुरक्षित और गोपनीय स्थान है जहाँ आप अपनी भावनाओं को साझा कर सकते हैं। हमारा लक्ष्य मानसिक स्वास्थ्य और भावनात्मक समर्थन को सभी के लिए सुलभ बनाना है।
-                    </p>
-                  </div>
+                <section id="testimonials">
                   <Testimonials />
                 </section>
             </div>
@@ -126,6 +116,31 @@ const ProfileView: React.FC<ProfileViewProps> = ({
             {/* New Combined FAQ and Contact Section */}
             <div className="p-6">
                 <div className="max-w-2xl mx-auto bg-slate-50 dark:bg-slate-900/50 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    {/* About Us Accordion */}
+                    <button
+                        onClick={() => handleAccordionToggle('about')}
+                        className="w-full flex justify-between items-center text-left p-6"
+                        aria-expanded={openAccordion === 'about'}
+                    >
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">हमारे बारे में</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">SakoonApp के बारे में जानें।</p>
+                        </div>
+                        <span className={`transform transition-transform duration-300 ${openAccordion === 'about' ? 'rotate-180' : 'rotate-0'}`}>
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </span>
+                    </button>
+                    <div className={`transition-all duration-500 ease-in-out ${openAccordion === 'about' ? 'max-h-[200px] opacity-100' : 'max-h-0'} overflow-hidden`}>
+                        <div className="px-6 pb-6 pt-0">
+                            <p className="text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                                SakoonApp एक सुरक्षित और गोपनीय स्थान है जहाँ आप अपनी भावनाओं को साझा कर सकते हैं। हमारा लक्ष्य मानसिक स्वास्थ्य और भावनात्मक समर्थन को सभी के लिए सुलभ बनाना है।
+                            </p>
+                        </div>
+                    </div>
+                    <div className="border-t border-slate-200 dark:border-slate-800"></div>
+
                     <FAQ
                         isOpen={openAccordion === 'faq'}
                         onToggle={() => handleAccordionToggle('faq')}
