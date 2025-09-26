@@ -6,9 +6,9 @@ import { FREE_MESSAGES_ON_SIGNUP } from './constants';
 // Import Core Components
 import SplashScreen from './components/SplashScreen';
 import LoginScreen from './components/LoginScreen';
+import AppShell from './components/AppShell';
 
-// Lazy load the main application shell and policy components
-const AppShell = lazy(() => import('./components/AppShell'));
+// Lazy load non-critical components
 const WelcomeModal = lazy(() => import('./components/WelcomeModal'));
 const TermsAndConditions = lazy(() => import('./components/TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./components/PrivacyPolicy'));
@@ -133,9 +133,7 @@ const App: React.FC = () => {
     
     // Once authenticated and onboarded, show the main application.
     return (
-        <Suspense fallback={<SplashScreen />}>
-            <AppShell user={user} />
-        </Suspense>
+        <AppShell user={user} />
     );
 };
 
