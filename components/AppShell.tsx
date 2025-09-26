@@ -65,7 +65,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const [feedback, setFeedback] = useState<{ type: 'success' | 'error', message: string } | null>(null);
     const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
     const [paymentDescription, setPaymentDescription] = useState('');
-    const [foregroundNotification, setForegroundNotification] = useState<{ title: string; body: string } | null>(null);
+    const [foregroundNotification, setForegroundNotification] = useState<{ title: string; body: string; type?: string } | null>(null);
     const [notification, setNotification] = useState<{ title: string; message: string } | null>(null);
     
     // --- Session State ---
@@ -159,6 +159,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 setForegroundNotification({
                     title: payload.notification.title || 'New Notification',
                     body: payload.notification.body || '',
+                    type: payload.data?.type,
                 });
                 setTimeout(() => setForegroundNotification(null), 6000);
             }
@@ -168,6 +169,23 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             unsubscribeOnMessage();
         };
     }, [user]);
+
+    // Effect to play sound for foreground notifications
+    useEffect(() => {
+        if (foregroundNotification) {
+            let soundUrl;
+            if (foregroundNotification.type === 'call') {
+                soundUrl = 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg';
+            } else if (foregroundNotification.type === 'chat') {
+                soundUrl = 'https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg';
+            }
+
+            if (soundUrl) {
+                const audio = new Audio(soundUrl);
+                audio.play().catch(e => console.error("Error playing notification sound:", e));
+            }
+        }
+    }, [foregroundNotification]);
 
     // --- Handlers ---
     

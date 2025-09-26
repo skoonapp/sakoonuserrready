@@ -28,11 +28,22 @@ messaging.onBackgroundMessage((payload) => {
     payload
   );
   
+  const notificationType = payload.data?.type; // e.g., 'call', 'chat'
+  let soundUrl;
+  if (notificationType === 'call') {
+    // A reliable, CORS-friendly ringtone URL
+    soundUrl = 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg'; 
+  } else if (notificationType === 'chat') {
+    // A reliable, CORS-friendly message tone URL
+    soundUrl = 'https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg';
+  }
+
   const notificationTitle = payload.notification.title;
   const notificationOptions = {
     body: payload.notification.body,
     // You can use an icon from the notification payload or a default one.
     icon: payload.notification.image || "https://cdn-icons-png.flaticon.com/512/2966/2966472.png",
+    sound: soundUrl, // Custom sound for the notification
     // Extract actions and data from the webpush payload if they exist
     actions: payload.data?.actions ? JSON.parse(payload.data.actions) : undefined,
     data: payload.data,
