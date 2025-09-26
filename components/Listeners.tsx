@@ -128,14 +128,16 @@ const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPla
       {/* DT Plans Section Header */}
       <section className="mt-4">
         <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
-        <div className="bg-gradient-to-r from-cyan-400 to-emerald-500 text-white font-semibold text-sm text-center py-2 shadow-md rounded-lg">
-          DT Plans में Fix मिनट और मैसेज मिलते हैं।
+        <div className="text-center">
+            <div className="my-2 inline-block bg-gradient-to-r from-cyan-400 to-emerald-500 text-white font-semibold text-sm px-4 py-2 shadow-md rounded-lg">
+              DT Plans में Fix मिनट और मैसेज मिलते हैं।
+            </div>
         </div>
         <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
       </section>
 
       {/* Plan Cards Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-2 border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y-2 md:divide-y-0 md:divide-x-2 divide-slate-200 dark:divide-slate-800 mt-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 border-2 border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden divide-y-2 md:divide-y-0 md:divide-x-2 divide-slate-200 dark:divide-slate-800">
         {planPairs.map((pair) => (
           <PlanCard 
             key={pair.tierName}
