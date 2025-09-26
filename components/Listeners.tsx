@@ -66,14 +66,14 @@ const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPla
       <section>
           <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
           <div className="text-center">
-            <div className="my-2 inline-block bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm px-4 py-2 shadow-md rounded-lg">
+            <div className="inline-block bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm px-4 py-2 shadow-md rounded-lg">
               MT Plans से कॉल या चैट कर सकते हैं।
             </div>
           </div>
           <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
 
           <div>
-               <div className="text-center pt-3 mb-3">
+               <div className="text-center pt-2 mb-2">
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
                     📞 कॉल = 2 MT/मिनट  •  💬 चैट = 1 MT/2 मैसेज
                   </p>
@@ -129,7 +129,7 @@ const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPla
       <section className="mt-4">
         <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
         <div className="text-center">
-            <div className="my-2 inline-block bg-gradient-to-r from-cyan-400 to-emerald-500 text-white font-semibold text-sm px-4 py-2 shadow-md rounded-lg">
+            <div className="inline-block bg-gradient-to-r from-cyan-400 to-emerald-500 text-white font-semibold text-sm px-4 py-2 shadow-md rounded-lg">
               DT Plans में Fix मिनट और मैसेज मिलते हैं।
             </div>
         </div>

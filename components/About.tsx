@@ -62,7 +62,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
 
   return (
     <div className="bg-slate-50 dark:bg-slate-950">
-      <div className="container mx-auto px-4 pt-2 pb-6 space-y-6">
+      <div className="container mx-auto px-4 pt-2 pb-6 space-y-4">
         
         {/* Highlighted Apply as Listener Section */}
         <section id="apply" className="py-2 bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-cyan-950/50 dark:to-blue-950/50 rounded-xl shadow-lg border-2 border-cyan-200 dark:border-cyan-600">
@@ -86,7 +86,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
 
         <div className="bg-white dark:bg-slate-900 rounded-xl shadow-md divide-y divide-slate-200 dark:border-slate-700">
             {/* Testimonials Section */}
-            <div className="p-6">
+            <div className="p-4">
                 <section id="testimonials">
                   <Testimonials />
                 </section>
@@ -94,7 +94,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
 
             {/* Install App Section */}
             {deferredPrompt && (
-              <div className="p-6">
+              <div className="p-4">
                   <section id="install-app" className="text-center">
                     <div className="container mx-auto">
                       <h3 className="text-xl md:text-2xl font-bold text-slate-700 dark:text-slate-100 mb-4">एक क्लिक में इंस्टॉल करें</h3>
@@ -114,7 +114,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
             )}
             
             {/* New Combined FAQ and Contact Section */}
-            <div className="p-6">
+            <div className="p-4">
                 <div className="max-w-2xl mx-auto bg-slate-50 dark:bg-slate-900/50 rounded-xl shadow-md border border-slate-200 dark:border-slate-800 overflow-hidden">
                     {/* About Us Accordion */}
                     <button
@@ -153,7 +153,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
             </div>
             
-            <div className="p-6 text-center">
+            <div className="p-4 text-center">
               <div className="flex justify-center items-center gap-4">
                   <button
                       onClick={onLogout}
@@ -172,7 +172,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                   </button>
               </div>
               
-              <div className="mt-6 pt-6 border-t border-slate-200 dark:border-slate-800">
+              <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
                  <h3 className="text-xl font-bold text-slate-700 dark:text-slate-100 mb-4">App & Policies</h3>
                  <div className="flex flex-col sm:flex-row justify-center items-center flex-wrap gap-4">
                     <button onClick={onShowTerms} className="text-cyan-600 dark:text-cyan-300 font-semibold hover:underline">Terms & Conditions</button>
@@ -181,7 +181,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
               </div>
 
-               <footer className="mt-6 pt-4 border-t border-slate-200 dark:border-slate-800">
+               <footer className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
                   <p className="text-sm text-slate-500 dark:text-slate-400">
                     © 2025 SakoonApp. All Rights Reserved.
                   </p>
