@@ -64,17 +64,14 @@ const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPla
       
       {/* Token Purchase Section */}
       <section>
-          <div className="text-center mb-2">
-              <div className="inline-block bg-gradient-to-r from-violet-500 to-indigo-600 text-white font-bold text-xl md:text-2xl px-8 py-2 rounded-full shadow-lg mb-2">
-                MT Plans
-              </div>
-              <p className="text-sm font-semibold text-slate-600 dark:text-slate-400 mt-2">Money Token खरीदकर कॉल या चैट कर सकते हैं।</p>
+          <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+          <div className="bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-sm text-center py-2 shadow-md my-2">
+            MT Plans से कॉल या चैट कर सकते हैं।
           </div>
-          
-          <div className="w-1/3 mx-auto mt-2 mb-3 border-t border-slate-200 dark:border-slate-700"></div>
+          <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
 
           <div>
-               <div className="text-center mb-3">
+               <div className="text-center mt-4 mb-3">
                   <p className="text-sm font-semibold text-slate-600 dark:text-slate-400">
                     📞 कॉल = 2 MT/मिनट  •  💬 चैट = 1 MT/2 मैसेज
                   </p>
