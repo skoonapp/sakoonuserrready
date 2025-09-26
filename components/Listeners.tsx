@@ -40,24 +40,24 @@ const PadlockIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 // --- End Icons ---
 
-
-const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPlan }) => {
-  const tokenOptions = [
+// Moved outside the component to prevent re-creation on every render.
+const tokenOptions = [
     { tokens: 10, price: 50 },
     { tokens: 20, price: 99, discount: 1 },
     { tokens: 50, price: 230, discount: 8, isPopular: true },
     { tokens: 100, price: 450, isPopular: true, discount: 10 },
     { tokens: 250, price: 1125, discount: 10 },
     { tokens: 500, price: 2250, discount: 10 },
-  ];
+];
 
-  const planPairs = CALL_PLANS.map((callPlan, index) => ({
+const planPairs = CALL_PLANS.map((callPlan, index) => ({
     callPlan,
     chatPlan: CHAT_PLANS[index],
     tierName: callPlan.tierName || '',
     isPopular: callPlan.tierName === 'Platinum Pack' || callPlan.tierName === 'Gold Pack'
-  }));
+}));
 
+const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPlan }) => {
   return (
     <div className="container mx-auto px-4 pt-2 pb-6">
       <HomeHistory onPurchase={onPurchase} currentUser={currentUser} />

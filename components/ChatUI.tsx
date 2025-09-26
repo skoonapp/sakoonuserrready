@@ -273,7 +273,14 @@ const ChatUI: React.FC<ChatUIProps> = ({ session, user, onLeave, onStartCall }) 
   return (
     <div className="fixed inset-0 bg-stone-100 dark:bg-slate-900 flex flex-col h-full" style={{backgroundImage: `url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png')`}}>
       <header className="bg-white dark:bg-slate-900 shadow-md z-10 flex items-center p-3 gap-3 flex-shrink-0">
-        <img src={listener.image} alt={listener.name} className="w-10 h-10 rounded-full object-cover" onError={() => setImageError(true)} />
+        <img 
+            src={listener.image} 
+            alt={listener.name} 
+            className="w-10 h-10 rounded-full object-cover" 
+            onError={() => setImageError(true)}
+            loading="lazy"
+            decoding="async"
+        />
         <div className="flex-grow">
             <div className="flex items-center gap-1.5"><h1 className="font-bold text-lg text-slate-800 dark:text-slate-100">{listener.name}</h1><VerifiedIcon className="w-5 h-5 text-blue-500" /></div>
             <p className={`text-xs font-semibold ${getStatusColor()}`}>{getStatusText()}</p>

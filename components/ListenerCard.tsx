@@ -86,7 +86,13 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
                 aria-label={`Chat with ${listener.name}`}
             >
                 <div className="relative flex-shrink-0">
-                    <img src={listener.image} alt={listener.name} className="w-14 h-14 rounded-full object-cover" />
+                    <img 
+                        src={listener.image} 
+                        alt={listener.name} 
+                        className="w-14 h-14 rounded-full object-cover" 
+                        loading="lazy" 
+                        decoding="async" 
+                    />
                     {listener.online && <OnlineIndicator />}
                 </div>
                 <div className="flex-grow min-w-0">
@@ -116,7 +122,13 @@ const ListenerCard: React.FC<ListenerCardProps> = ({ listener, variant, onCallCl
             )}
             
             <div className="relative flex-shrink-0">
-                <img src={listener.image} alt={listener.name} className="w-20 h-20 rounded-full object-cover" />
+                <img 
+                    src={listener.image} 
+                    alt={listener.name} 
+                    className="w-20 h-20 rounded-full object-cover" 
+                    loading="lazy" 
+                    decoding="async"
+                />
                 {listener.online && <OnlineIndicator />}
             </div>
             
