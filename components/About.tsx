@@ -65,14 +65,14 @@ const ProfileView: React.FC<ProfileViewProps> = ({
       <div className="container mx-auto px-4 pt-2 pb-6 space-y-6">
         
         {/* Highlighted Apply as Listener Section */}
-        <section id="apply" className="py-3 bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-cyan-950/50 dark:to-blue-950/50 rounded-xl shadow-lg border-2 border-cyan-200 dark:border-cyan-600">
+        <section id="apply" className="py-2 bg-gradient-to-br from-cyan-50 to-blue-100 dark:from-cyan-950/50 dark:to-blue-950/50 rounded-xl shadow-lg border-2 border-cyan-200 dark:border-cyan-600">
           <div className="container mx-auto px-6">
-            <div className="text-center mb-3">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                Listener बनें – दूसरों की मदद करें और कमाएँ!
+            <div className="text-center mb-2">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-slate-100">
+                Listener बनें – दूसरों की मदद करें
               </h2>
-              <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mx-auto mt-1">
-                क्या आप दूसरों की सुनना पसंद करते हैं? हमारे GROUP में शामिल हों और अपने जीवन में बदलाव लाएँ।
+              <p className="text-sm text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
+                क्या आप दूसरों की सुनना पसंद करती हैं? हमारे GROUP में शामिल हों कर अपने जीवन में बदलाव लाएँ।
               </p>
               <p className="mt-2 text-base font-semibold text-green-700 dark:text-green-300 bg-green-100 dark:bg-green-500/10 inline-block px-3 py-1.5 rounded-full border border-green-200 dark:border-green-500/30">
                 💰 10,000–15,000 रु. महीना कमाएँ।
