@@ -84,15 +84,15 @@ const HomeView: React.FC<HomeViewProps> = ({ currentUser, onPurchase, loadingPla
                       {tokenOptions.map((option, index) => {
                         const isPopular = option.isPopular ?? false;
                         const popularContainerStyles = isPopular
-                            ? 'bg-gradient-to-br from-cyan-50 to-blue-200 dark:from-cyan-950/60 dark:to-blue-950/60 scale-105 z-10'
+                            ? 'bg-gradient-to-br from-cyan-50 to-blue-200 dark:from-cyan-950/60 dark:to-blue-950/60 z-10'
                             : 'bg-white dark:bg-slate-900';
                         const isLoadingThisPlan = loadingPlan === `mt_${option.tokens}`;
 
                         return (
                           <div key={option.tokens} className={`relative ${popularContainerStyles} p-3 flex flex-col items-center justify-between transition-all hover:shadow-lg hover:-translate-y-1 min-h-[145px]`}>
                               {isPopular && (
-                                  <div className="absolute top-0 -translate-y-1/2 bg-gradient-to-r from-orange-400 to-amber-500 text-white text-sm font-bold px-4 py-1 rounded-full shadow-lg animate-pulse z-10">
-                                      लोकप्रिय
+                                  <div className="absolute top-0 -translate-y-1/2 bg-gradient-to-r from-orange-400 to-amber-500 text-white text-xs font-bold px-3 py-0.5 rounded-full shadow-lg animate-pulse z-10">
+                                      Popular
                                   </div>
                               )}
                               <div className="text-center">

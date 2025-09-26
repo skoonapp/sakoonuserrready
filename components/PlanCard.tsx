@@ -52,7 +52,7 @@ const getTierStyles = (tierName: string): string => {
 const PlanCard: React.FC<PlanCardProps> = ({ tierName, callPlan, chatPlan, isPopular = false, onPurchase, loadingPlan }) => {
   
   const popularContainerStyles = isPopular 
-    ? 'bg-gradient-to-br from-cyan-50 to-blue-200 dark:from-cyan-950/60 dark:to-blue-950/60 scale-105' 
+    ? 'bg-gradient-to-br from-cyan-50 to-blue-200 dark:from-cyan-950/60 dark:to-blue-950/60' 
     : 'bg-white dark:bg-slate-900';
 
   const tierStyles = getTierStyles(tierName);
@@ -66,8 +66,8 @@ const PlanCard: React.FC<PlanCardProps> = ({ tierName, callPlan, chatPlan, isPop
   return (
     <div className={`relative ${popularContainerStyles} p-3 flex flex-col text-center items-center hover:-translate-y-1 transition-all duration-300 min-h-[160px]`}>
       {isPopular && (
-        <div className="absolute top-0 -translate-y-1/2 bg-gradient-to-r from-orange-400 to-amber-500 text-white text-sm font-bold px-4 py-1 rounded-full shadow-lg animate-pulse z-10">
-          लोकप्रिय
+        <div className="absolute top-0 -translate-y-1/2 bg-gradient-to-r from-orange-400 to-amber-500 text-white text-xs font-bold px-3 py-0.5 rounded-full shadow-lg animate-pulse z-10">
+          Popular
         </div>
       )}
       <div className="mb-3 w-full flex justify-between items-center">
