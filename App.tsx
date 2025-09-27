@@ -61,9 +61,9 @@ const App: React.FC = () => {
                                 hasSeenWelcome: false,
                             };
                             try {
-                                // The onSnapshot listener will automatically receive this new data.
+                                // The onSnapshot listener will automatically receive this new data,
+                                // so we only need to write to Firestore without setting local state here.
                                 await userDocRef.set(newUser);
-                                setUser(newUser);
                             } catch (error) {
                                 console.error("Failed to create new user document:", error);
                                 auth.signOut();

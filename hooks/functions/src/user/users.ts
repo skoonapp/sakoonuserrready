@@ -44,6 +44,14 @@ export const updateMyProfile = functions
 
         const userRef = db.collection('users').doc(userId);
 
+        // Explicitly check if the user document exists before updating.
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            functions.logger.error(`Attempted to update a non-existent user document for UID: ${userId}`);
+            throw new functions.https.HttpsError('not-found', 'User profile could not be found to update.');
+        }
+
+
         // 4. Mobile Uniqueness Check
         if (normalizedMobile) {
             const mobileQuery = await db.collection('users').where('mobile', '==', normalizedMobile).limit(1).get();
@@ -64,7 +72,9 @@ export const updateMyProfile = functions
         }
 
         // 6. Update Firestore
-        await userRef.set(updatePayload, { merge: true });
+        // Switched from set({merge: true}) to update() as we've confirmed the document exists.
+        // This is a more explicit operation for updating an existing document.
+        await userRef.update(updatePayload);
         
         // 7. Return success response to the client.
         return { success: true, message: 'Profile updated successfully!' };
