@@ -20,51 +20,63 @@ export const updateMyProfile = functions
     }
     const userId = context.auth.uid;
 
-    // 2. Input Validation: Check if the received data is valid and clean.
-    const { name, city, mobile } = data;
+    // 2. Input Validation
+    const { name, city } = data;
+    const { mobile } = data;
+
     if (!name || typeof name !== 'string' || name.trim().length < 2) {
       throw new functions.https.HttpsError('invalid-argument', 'A valid name is required.');
     }
     if (!city || typeof city !== 'string' || city.trim().length < 2) {
       throw new functions.https.HttpsError('invalid-argument', 'A valid city is required.');
     }
-    // Mobile is optional, but if provided, it must be a valid 10-digit number.
-    if (mobile && (typeof mobile !== 'string' || !/^\d{10}$/.test(mobile.trim()))) {
-      throw new functions.https.HttpsError('invalid-argument', 'A valid 10-digit mobile number is required.');
+
+    let normalizedMobile: string | undefined = undefined;
+
+    // 3. Mobile Number Normalization & Validation
+    if (mobile && typeof mobile === 'string' && mobile.trim()) {
+        // Remove all non-digit characters to get the raw number
+        const digitsOnly = mobile.trim().replace(/\D/g, '');
+
+        // Standardize to E.164 format for India (+91XXXXXXXXXX)
+        if (digitsOnly.startsWith('91') && digitsOnly.length === 12) {
+            // Handles numbers like 919876543210
+            normalizedMobile = `+${digitsOnly}`;
+        } else if (digitsOnly.length === 10) {
+            // Handles numbers like 9876543210
+            normalizedMobile = `+91${digitsOnly}`;
+        } else {
+            // If it doesn't match a valid format, throw an error.
+            throw new functions.https.HttpsError('invalid-argument', 'Please enter a valid 10-digit Indian mobile number.');
+        }
     }
 
     const userRef = db.collection('users').doc(userId);
 
-    // 3. (NEW) Mobile Uniqueness Check: If a mobile number is provided, ensure it's not already in use by another user.
-    if (mobile) {
-        const trimmedMobile = mobile.trim();
-        const mobileQuery = await db.collection('users').where('mobile', '==', trimmedMobile).limit(1).get();
-        
-        // If the query finds a user AND that user's ID is different from the current user's ID, then the number is taken.
+    // 4. Mobile Uniqueness Check (using normalized number)
+    if (normalizedMobile) {
+        const mobileQuery = await db.collection('users').where('mobile', '==', normalizedMobile).limit(1).get();
         if (!mobileQuery.empty && mobileQuery.docs[0].id !== userId) {
             throw new functions.https.HttpsError(
                 'already-exists',
-                'This mobile number is already linked to another account. Please use a different one.'
+                'This mobile number is already linked to another account.'
             );
         }
     }
 
-    // 4. Prepare Data Payload for Firestore
+    // 5. Prepare Data Payload for Firestore
     const updatePayload: { [key: string]: any } = {
       name: name.trim(),
       city: city.trim(),
-      hasSeenWelcome: true, // This is crucial to mark the onboarding as complete.
+      hasSeenWelcome: true, // Mark onboarding as complete.
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-    if (mobile) {
-      updatePayload.mobile = mobile.trim();
+    if (normalizedMobile) {
+      updatePayload.mobile = normalizedMobile;
     }
 
-    // 5. Update Firestore Document
+    // 6. Update Firestore Document
     try {
-      // Use 'set' with merge:true to make the operation more robust.
-      // It will update the document if it exists, or create it if it doesn't,
-      // preventing errors from potential race conditions on user creation.
       await userRef.set(updatePayload, { merge: true });
       functions.logger.info(`Profile completed and updated for user: ${userId}`);
       return {

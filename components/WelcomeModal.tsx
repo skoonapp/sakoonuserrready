@@ -94,7 +94,7 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
       };
 
       if (showMobileInput) {
-        updateData.mobile = mobile.trim();
+        updateData.mobile = `+91${mobile.trim()}`;
       }
       
       // Use the new retry function
@@ -117,7 +117,8 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
           setError("सर्वर से कनेक्ट नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।");
           break;
         default:
-          setError("आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।"); // A generic fallback.
+          // Display the backend's message if available, otherwise show a generic one.
+          setError(err.message || "आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।");
       }
       // Only stop loading if there was an error, allowing the user to try again.
       setLoading(false);
