@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
           manifest: {
             name: "SakoonApp",
             short_name: "SakoonApp",
-            description: "Talk to trained listeners and find emotional support. A safe space for your feelings.",
+            description: "SakoonApp - मन हल्का करने के लिए आपका अपना साथी। दिल खोलकर अपनी बातें साझा करें और पाएं एक ऐसा दोस्त जो आपको समझे और सुने।",
             start_url: "/",
             scope: "/",
             display: "standalone",
