@@ -174,9 +174,9 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         if (foregroundNotification) {
             let soundUrl;
             if (foregroundNotification.type === 'call') {
-                soundUrl = 'https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg';
+                soundUrl = 'https://actions.google.com/sounds/v1/communication/voip_call_tone.ogg';
             } else if (foregroundNotification.type === 'chat') {
-                soundUrl = 'https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg';
+                soundUrl = 'https://actions.google.com/sounds/v1/notifications/light_touch.ogg';
             }
 
             if (soundUrl) {
