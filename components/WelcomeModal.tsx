@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { User } from '../types';
-import { functions } from '../utils/firebase';
+import { auth, functions } from '../utils/firebase';
 
 interface WelcomeModalProps {
   user: User;
@@ -28,38 +28,11 @@ const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-/**
- * A helper function that calls the `updateMyProfile` cloud function with a retry mechanism.
- * It specifically retries on 'internal' or 'unavailable' errors, which are often transient.
- * @param data The user profile data to send.
- * @param retries The number of retries to attempt.
- * @param delay The initial delay between retries in milliseconds.
- * @returns A promise that resolves on success or rejects after all retries fail.
- */
-const callUpdateProfileWithRetry = async (data: { name: string; city: string; mobile?: string }, retries = 2, delay = 1500): Promise<any> => {
-    const updateProfile = functions.httpsCallable('updateMyProfile');
-    try {
-        return await updateProfile(data);
-    } catch (err: any) {
-        // Only retry on transient server/network errors.
-        if ((err.code === 'internal' || err.code === 'unavailable') && retries > 0) {
-            console.warn(`Cloud function call failed with code: ${err.code}. Retrying in ${delay}ms... (${retries} retries left)`);
-            await new Promise(res => setTimeout(res, delay));
-            // Retry with one less attempt and double the delay for exponential backoff.
-            return callUpdateProfileWithRetry(data, retries - 1, delay * 2);
-        } else {
-            // If it's not a retriable error or retries are exhausted, re-throw the error.
-            throw err;
-        }
-    }
-};
-
-
 const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPrivacyPolicy, onOnboardingComplete }) => {
   const [name, setName] = useState(user.name || '');
   const [city, setCity] = useState('');
   const [mobile, setMobile] = useState('');
-  const [isChecked, setIsChecked] = useState(true);
+  const [isChecked, setIsChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   
@@ -94,33 +67,25 @@ const WelcomeModal: React.FC<WelcomeModalProps> = ({ user, onShowTerms, onShowPr
       };
 
       if (showMobileInput) {
-        updateData.mobile = `+91${mobile.trim()}`;
+        updateData.mobile = mobile.trim(); // Send the 10-digit number; backend will format it.
       }
       
-      // Use the new retry function
-      await callUpdateProfileWithRetry(updateData);
+      const updateMyProfile = functions.httpsCallable('updateMyProfile');
+      await updateMyProfile(updateData);
       
       onOnboardingComplete();
     } catch (err: any) {
-      console.error("Error updating user profile after retries:", err);
-      // Provide specific, user-friendly error messages based on the error code from the backend.
+      console.error("Error updating user profile:", err);
+      // Callable functions throw errors with 'code' and 'message' properties
       switch (err.code) {
         case 'already-exists':
         case 'invalid-argument':
-          setError(err.message); // Backend provides user-friendly messages for these.
+          setError(err.message);
           break;
         case 'internal':
-          // This message is now shown only after all retries have failed.
-          setError("An internal server error occurred. Please try again later or contact support.");
-          break;
-        case 'unavailable':
-          setError("सर्वर से कनेक्ट नहीं हो सका। कृपया अपना इंटरनेट कनेक्शन जांचें और फिर से प्रयास करें।");
-          break;
         default:
-          // Display the backend's message if available, otherwise show a generic one.
           setError(err.message || "आपकी जानकारी सहेजने में विफल। कृपया पुन: प्रयास करें।");
       }
-      // Only stop loading if there was an error, allowing the user to try again.
       setLoading(false);
     }
   };
