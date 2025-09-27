@@ -28,7 +28,7 @@ const TermsAndConditions = lazy(() => import('./TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./PrivacyPolicy'));
 const CancellationRefundPolicy = lazy(() => import('./CancellationRefundPolicy'));
 
-// --- Icons for Install Banner ---
+// --- Icons for Install Banner & Notifications ---
 const InstallIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
         <path d="M12 1.5a.75.75 0 01.75.75V12h-1.5V2.25A.75.75 0 0112 1.5z" />
@@ -135,8 +135,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         if (!user || !messaging) return;
         const setupNotifications = async () => {
             try {
-                // FIX: Use `window.Notification` to access the browser's native Notification API.
-                // The imported `Notification` component was shadowing the global API, causing the error.
+                // Use `window.Notification` to access the browser's native Notification API.
                 if (window.Notification.permission === 'granted') {
                     const currentToken = await messaging.getToken();
                     if (currentToken && user.fcmToken !== currentToken) {
