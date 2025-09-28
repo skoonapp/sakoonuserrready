@@ -124,18 +124,8 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             setIsDarkMode(false);
         }
     }, []);
-    
-    useEffect(() => {
-        window.history.replaceState({ activeIndex: 0 }, '');
-        window.history.pushState({ activeIndex: 1 }, '');
-        const handlePopState = (event: PopStateEvent) => {
-            const newIndex = event.state?.activeIndex ?? 0;
-            setActiveIndex(newIndex);
-        };
-        window.addEventListener('popstate', handlePopState);
-        return () => window.removeEventListener('popstate', handlePopState);
-    }, []);
 
+    // Effect for FCM Notifications
     useEffect(() => {
         if (!user || !messaging) return;
         const setupNotifications = async () => {
@@ -190,22 +180,6 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             }
         }
     }, [foregroundNotification]);
-
-    // --- Handlers ---
-    
-    const showNotification = useCallback((title: string, message: string) => {
-        setNotification({ title, message });
-    }, []);
-
-    const handleInstallClick = useCallback(() => {
-        if (deferredInstallPrompt) {
-            deferredInstallPrompt.prompt();
-            deferredInstallPrompt.userChoice.then(() => {
-                setDeferredInstallPrompt(null);
-                setShowInstallBanner(false);
-            });
-        }
-    }, [deferredInstallPrompt]);
     
     const navigateTo = useCallback((newIndex: number) => {
         const currentIndex = activeIndex;
@@ -221,6 +195,67 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         }
         setActiveIndex(newIndex);
     }, [activeIndex]);
+
+    // --- History Management for Back Button ---
+    const historyDidSetup = useRef(false);
+    useEffect(() => {
+        // This setup runs only ONCE.
+        if (!historyDidSetup.current) {
+            window.history.replaceState({ activeIndex: 0 }, ''); // Base state
+            window.history.pushState({ activeIndex: 1 }, ''); // Initial view state
+            historyDidSetup.current = true;
+        }
+
+        const handlePopState = (event: PopStateEvent) => {
+            // The listener's closure has the latest `showAICompanion` value because the effect re-runs when it changes.
+            if (showAICompanion) {
+                setShowAICompanion(false); // Close the modal.
+                navigateTo(1); // Navigate to the 'Calls' view as requested.
+                return; // Prevent the default view navigation logic from running.
+            }
+            
+            // Default logic for view navigation.
+            const newIndex = event.state?.activeIndex ?? 0;
+            setActiveIndex(newIndex);
+        };
+        
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+        
+    }, [showAICompanion, navigateTo]);
+
+
+    // --- Handlers ---
+    
+    // NEW: Handlers for AI Companion with history management.
+    const handleOpenAICompanion = useCallback(() => {
+        window.history.pushState({ modal: 'ai' }, '');
+        setShowAICompanion(true);
+    }, []);
+    
+    const handleCloseAICompanion = useCallback(() => {
+        // If the modal state is in history, go back to trigger the popstate listener.
+        if (window.history.state?.modal === 'ai') {
+            window.history.back();
+        } else {
+            // Fallback just in case.
+            setShowAICompanion(false);
+        }
+    }, []);
+
+    const showNotification = useCallback((title: string, message: string) => {
+        setNotification({ title, message });
+    }, []);
+
+    const handleInstallClick = useCallback(() => {
+        if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            deferredInstallPrompt.userChoice.then(() => {
+                setDeferredInstallPrompt(null);
+                setShowInstallBanner(false);
+            });
+        }
+    }, [deferredInstallPrompt]);
     
     const handleInstallDismiss = useCallback(() => {
         const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
@@ -612,10 +647,10 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                     </button>
                 </div>
             )}
-            <AICompanionButton onClick={() => setShowAICompanion(true)} />
+            <AICompanionButton onClick={handleOpenAICompanion} />
             
             <Suspense fallback={<div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center"><ViewLoader /></div>}>
-                {showAICompanion && <AICompanion user={user} onClose={() => setShowAICompanion(false)} onNavigateToServices={() => { navigateTo(1); setShowAICompanion(false); }} />}
+                {showAICompanion && <AICompanion user={user} onClose={handleCloseAICompanion} onNavigateToServices={() => { handleCloseAICompanion(); navigateTo(1); }} />}
                 {showPolicy === 'terms' && <TermsAndConditions onClose={() => setShowPolicy(null)} />}
                 {showPolicy === 'privacy' && <PrivacyPolicy onClose={() => setShowPolicy(null)} />}
                 {showPolicy === 'cancellation' && <CancellationRefundPolicy onClose={() => setShowPolicy(null)} />}
