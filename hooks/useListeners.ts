@@ -40,6 +40,8 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
     }, [favoriteListenerIds]);
 
     // A single, memoized function to combine, sort, and update the final state.
+    // By making the dependency array empty, the function becomes stable and is created only once,
+    // preventing a performance-killing re-subscription loop in the useEffect hooks below.
     const combineAndSetState = useCallback(() => {
         const profiles = profilesRef.current;
         const statuses = statusesRef.current;
@@ -85,11 +87,10 @@ export const useListeners = (favoriteListenerIds: string[] = []) => {
         
         setListeners(sortedListeners);
 
-        // Only set loading to false once we have attempted to combine.
-        if (loading) {
-            setLoading(false);
-        }
-    }, [loading]);
+        // This is safe to call multiple times; React will bail out of the state update if the value is already false.
+        // This removes the dependency on the `loading` state variable, breaking the re-subscription loop.
+        setLoading(false);
+    }, []);
 
     // Effect 1: Set up the listener for Firestore profiles.
     useEffect(() => {

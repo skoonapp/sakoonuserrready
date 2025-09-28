@@ -112,6 +112,13 @@ const processPurchase = async (paymentNotes: any, paymentId: string, eventData: 
 // CORS-enabled createCashfreeOrder function
 export const createCashfreeOrder = functions.region('asia-south1').https.onCall(async (data, context) => {
   if (!context.auth) throw new functions.https.HttpsError("unauthenticated", "आपको लॉग इन होना चाहिए।");
+  
+  // CRITICAL FIX: Add a check to ensure Cashfree credentials are loaded from the environment.
+  // This provides a much clearer error message if the server is not configured correctly.
+  if (!(Cashfree as any).XClientId || !(Cashfree as any).XClientSecret) {
+      functions.logger.error("FATAL: Cashfree Client ID or Secret not available in function environment.");
+      throw new functions.https.HttpsError("failed-precondition", "Payment gateway is not configured on the server. Please contact support.");
+  }
 
   const { amount, planType, planDetails } = data;
 
