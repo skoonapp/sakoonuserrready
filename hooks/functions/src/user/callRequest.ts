@@ -1,24 +1,19 @@
-// hooks/functions/src/user/callRequest.ts
+// functions/src/user/callRequest.ts
 import * as functions from 'firebase-functions/v1';
 import * as crypto from 'crypto';
-import { ZEGO_APP_ID, ZEGO_SERVER_SECRET } from '../config';
+
+// Configuration - Environment variables से लेंगे
+const ZEGO_APP_ID = parseInt(functions.config().zegocloud?.appid || "0", 10);
+const ZEGO_SERVER_SECRET = functions.config().zegocloud?.secret || "";
 
 /**
- * Generates a Zego Cloud Kit Token. This logic is based on Zego's official token generation examples.
- *
- * @param {number} appId Your Zego App ID.
- * @param {string} serverSecret Your Zego Server Secret.
- * @param {string} userId The user's ID for whom the token is generated.
- * @param {string} roomId The room ID the user is joining.
- * @returns {string} The generated Kit Token.
+ * Generates a Zego Cloud Kit Token for production use
  */
 function generateKitToken(appId: number, serverSecret: string, userId: string, roomId: string): string {
-    const effectiveTimeInSeconds = 3600; // Token is valid for 1 hour
+    const effectiveTimeInSeconds = 3600; // 1 hour validity
     const createTime = Math.floor(Date.now() / 1000);
     const expireTime = createTime + effectiveTimeInSeconds;
     
-    // FIX: The token payload now includes the room_id and privileges for joining and publishing streams,
-    // which is a more secure and standard way to generate Zego tokens.
     const payloadObject = {
         room_id: roomId,
         privilege: {
@@ -39,7 +34,6 @@ function generateKitToken(appId: number, serverSecret: string, userId: string, r
 
     const plainText = JSON.stringify(tokenInfo);
     
-    // The server secret must be a 32-byte string.
     if (serverSecret.length !== 32) {
         throw new Error("Zego server secret must be 32 characters long.");
     }
@@ -51,93 +45,92 @@ function generateKitToken(appId: number, serverSecret: string, userId: string, r
     cipher.setAutoPadding(true);
     
     const encryptedBuffer = Buffer.concat([cipher.update(Buffer.from(plainText)), cipher.final()]);
-
-    // The final token buffer has a specific structure:
-    // 8 bytes for expire time (big-endian)
-    // 2 bytes for IV length (big-endian)
-    // IV bytes (16 bytes)
-    // 2 bytes for encrypted text length (big-endian)
-    // Encrypted text bytes
     
-    // Allocate buffer with the total required size
     const tokenBuffer = Buffer.alloc(8 + 2 + 16 + 2 + encryptedBuffer.length);
     
     let offset = 0;
     
-    // Write expire time (64-bit BigInt)
     tokenBuffer.writeBigInt64BE(BigInt(expireTime), offset);
     offset += 8;
     
-    // Write IV length
     tokenBuffer.writeUInt16BE(iv.length, offset);
     offset += 2;
     
-    // Write IV
     iv.copy(tokenBuffer, offset);
     offset += iv.length;
     
-    // Write encrypted text length
     tokenBuffer.writeUInt16BE(encryptedBuffer.length, offset);
     offset += 2;
     
-    // Write encrypted text
     encryptedBuffer.copy(tokenBuffer, offset);
     
-    // The final token string is '04' + base64(tokenBuffer)
     return '04' + tokenBuffer.toString('base64');
 }
 
 /**
- * Firebase Callable Function to generate a ZegoCloud Kit Token.
+ * Production Firebase Callable Function - ZegoCloud Token Generator
  */
 export const generateZegoToken = functions
   .region('asia-south1')
   .https
   .onCall(async (data, context) => {
-    // Authentication check
-    if (!context.auth) {
-      throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
+    
+    // Step 1: Authentication and User ID Check
+    if (!context.auth || !context.auth.uid) {
+      functions.logger.error('Authentication failed - no user context');
+      throw new functions.https.HttpsError(
+        'unauthenticated', 
+        'User must be authenticated to generate token'
+      );
     }
-
+    // SECURELY get userId from context, not from client data
     const userId = context.auth.uid;
-    
-    // Extract roomId from request data
-    const { roomId } = data;
+    functions.logger.info(`Token request from user: ${userId}`);
 
-    // FIXED: Correct error message for roomId validation
-    if (!roomId || typeof roomId !== 'string' || roomId.trim().length === 0) {
-      functions.logger.error('Invalid roomId provided:', { roomId, type: typeof roomId });
-      throw new functions.https.HttpsError('invalid-argument', 'roomId is required and must be a non-empty string');
+    // Step 2: Extract and validate roomId from client data
+    if (!data || typeof data.roomId !== 'string' || data.roomId.trim().length === 0) {
+      functions.logger.error('Invalid roomId provided', { dataReceived: data });
+      throw new functions.https.HttpsError(
+        'invalid-argument', 
+        'roomId is required and must be a non-empty string'
+      );
+    }
+    const roomId = data.roomId.trim();
+
+    // Step 3: Environment Configuration Check
+    if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET || ZEGO_SERVER_SECRET.length !== 32) {
+      functions.logger.error('Zego service is not configured correctly on the server.');
+      throw new functions.https.HttpsError(
+        'failed-precondition', 
+        'Service configuration error. Please contact support.'
+      );
     }
 
-    // Additional userId validation (defensive programming)
-    if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
-      functions.logger.error('Invalid userId from authentication:', { userId, type: typeof userId });
-      throw new functions.https.HttpsError('invalid-argument', 'User authentication is invalid');
-    }
-
-    // Environment configuration check
-    if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET) {
-      functions.logger.error('Zego App ID or Server Secret is not configured.');
-      throw new functions.https.HttpsError('failed-precondition', 'The server is not configured for calling services.');
-    }
-    
-    if (typeof ZEGO_SERVER_SECRET !== 'string' || ZEGO_SERVER_SECRET.length !== 32) {
-        functions.logger.error(`Invalid Zego Server Secret length. Expected 32, got ${ZEGO_SERVER_SECRET ? ZEGO_SERVER_SECRET.length : 'undefined'}.`);
-        throw new functions.https.HttpsError('failed-precondition', 'Server configuration for calling services is invalid.');
-    }
-
+    // Step 4: Generate Token
     try {
-      // Log the attempt for debugging
-      functions.logger.info('Generating Zego token:', { userId, roomId });
+      functions.logger.info(`Generating token for user: ${userId}, room: ${roomId}`);
       
-      // Generate the token
       const token = generateKitToken(ZEGO_APP_ID, ZEGO_SERVER_SECRET, userId, roomId);
       
-      functions.logger.info(`Successfully generated Zego token for user: ${userId} for room: ${roomId}`);
-      return { token };
+      functions.logger.info(`Token generated successfully for user: ${userId}`);
+      
+      return { 
+        token,
+        userId,
+        roomId,
+        expires: Date.now() + (3600 * 1000) // 1 hour from now
+      };
+      
     } catch (error: any) {
-      functions.logger.error(`Error generating Zego token for user ${userId}:`, error);
-      throw new functions.https.HttpsError('internal', 'An error occurred while generating the call token.', error.message);
+      functions.logger.error(`Token generation failed for user ${userId}:`, {
+        error: error.message,
+        stack: error.stack
+      });
+      
+      throw new functions.https.HttpsError(
+        'internal', 
+        'Failed to generate call token',
+        error.message
+      );
     }
   });
