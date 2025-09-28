@@ -281,72 +281,82 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const handleLogout = useCallback(() => auth.signOut(), []);
     
     const handleStartSession = useCallback(async (type: 'call' | 'chat', listener: Listener) => {
-        if (!user) return;
+        if (!user) return; // अगर यूज़र लॉग इन नहीं है, तो कुछ न करें।
         
-        // --- CHAT SESSION LOGIC ---
+        // --- चैट सेशन का लॉजिक ---
         if (type === 'chat') {
+            // स्टेप 1: मुफ़्त मैसेज चेक करें।
             if ((user.freeMessagesRemaining || 0) > 0) {
+                // अगर मुफ़्त मैसेज हैं, तो सीधे चैट शुरू करें।
                 setActiveChatSession({ type: 'chat', listener, plan: { duration: 'Free Trial', price: 0 }, sessionDurationSeconds: 3 * 3600, associatedPlanId: `free_trial_${user.uid}`, isTokenSession: false, isFreeTrial: true });
                 return;
             }
             
+            // स्टेप 2: खरीदे हुए DT चैट प्लान चेक करें।
             const activePlans = (user.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
             const dtPlan = activePlans.find(p => p.type === 'chat' && (p.messages || 0) > 0);
     
             if (dtPlan) {
+                // अगर DT प्लान है, तो उससे चैट शुरू करें।
                 const session = { listener, plan: { duration: dtPlan.name || 'Plan', price: dtPlan.price || 0 }, associatedPlanId: dtPlan.id, isTokenSession: false };
                 setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
             } else {
-                // Token check for chat
+                // स्टेप 3: MT टोकन चेक करें। (1 MT में 2 मैसेज, तो 0.5 MT चाहिए)
                 const canUseTokens = (user.tokens || 0) >= 0.5;
                 if (canUseTokens) {
+                    // अगर MT हैं, तो उनसे चैट शुरू करें।
                     const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
                     setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
                 } else {
+                    // स्टेप 4: अगर कुछ नहीं है, तो रिचार्ज का पॉप-अप दिखाएं।
                     setRechargeContextListener(listener);
                     setShowRechargeModal(true);
                 }
             }
-        // --- CALL SESSION LOGIC ---
+        // --- कॉल सेशन का लॉजिक ---
         } else if (type === 'call') {
             try {
-                // Check microphone permission status first.
+                // कॉल करने से पहले, माइक्रोफोन की परमिशन मांगें।
                 if (navigator.permissions) {
                     const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
                     if (permissionStatus.state === 'denied') {
-                        showNotification('Microphone Blocked', 'To make calls, please enable microphone access in your browser settings for this site.');
+                        showNotification('Microphone Blocked', 'कॉल करने के लिए, कृपया ब्राउज़र सेटिंग्स में माइक्रोफोन को अनुमति दें।');
                         return;
                     }
                 }
                 
-                // Request microphone access. This will prompt if not yet granted.
+                // परमिशन मांगें। अगर नहीं दी है तो पॉप-अप आएगा।
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                // Permission granted, stop the track immediately.
+                // परमिशन मिलते ही उसे बंद कर दें, क्योंकि हमें सिर्फ परमिशन चाहिए थी।
                 stream.getTracks().forEach(track => track.stop());
     
             } catch (error) {
                 console.error('Microphone permission was not granted:', error);
-                showNotification('Microphone Required', 'Microphone access is required to make calls. Please allow access and try again.');
+                showNotification('Microphone Required', 'कॉल करने के लिए माइक्रोफोन की अनुमति ज़रूरी है।');
                 return;
             }
     
-            // --- Call plan logic (runs only if permission is granted) ---
+            // --- कॉल प्लान का लॉजिक (सिर्फ परमिशन मिलने पर चलेगा) ---
+            // स्टेप 1: खरीदे हुए DT कॉल प्लान चेक करें।
             const activePlans = (user.activePlans || []).filter(p => p.expiryTimestamp > Date.now());
             const dtPlan = activePlans.find(p => p.type === 'call' && (p.minutes || 0) > 0);
     
             if (dtPlan) {
+                // अगर DT प्लान है, तो उससे कॉल शुरू करें।
                 const session = { listener, plan: { duration: dtPlan.name || 'Plan', price: dtPlan.price || 0 }, associatedPlanId: dtPlan.id, isTokenSession: false };
                 const durationSeconds = (dtPlan.minutes || 0) * 60;
                 setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
             } else {
-                // Token check for call
+                // स्टेप 2: MT टोकन चेक करें। (1 मिनट के लिए 2 MT चाहिए)
                 const canUseTokens = (user.tokens || 0) >= 2;
                 if (canUseTokens) {
+                    // अगर MT हैं, तो उनसे कॉल शुरू करें।
                     const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
-                    const maxMinutes = Math.floor((user.tokens || 0) / 2); // 2 MT per minute
+                    const maxMinutes = Math.floor((user.tokens || 0) / 2); // 2 MT प्रति मिनट
                     const durationSeconds = maxMinutes * 60;
                     setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
                 } else {
+                    // स्टेप 3: अगर कुछ नहीं है, तो रिचार्ज का पॉप-अप दिखाएं।
                     setRechargeContextListener(listener);
                     setShowRechargeModal(true);
                 }
