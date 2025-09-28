@@ -172,7 +172,7 @@ const AICompanion: React.FC<AICompanionProps> = ({ user, onClose, onNavigateToSe
             >
                 <header className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 shadow-sm flex-shrink-0 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-green-500 to-teal-600 p-2 rounded-full">
+                        <div className="bg-green-500 p-2 rounded-full">
                             <WhatsAppIcon className="w-6 h-6 text-white" />
                         </div>
                         <div>
@@ -196,7 +196,7 @@ const AICompanion: React.FC<AICompanionProps> = ({ user, onClose, onNavigateToSe
                             return (
                                 <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
                                     {isAI && (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center shrink-0 self-start">
+                                        <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shrink-0 self-start">
                                             <WhatsAppIcon className="w-5 h-5 text-white" />
                                         </div>
                                     )}
@@ -212,7 +212,7 @@ const AICompanion: React.FC<AICompanionProps> = ({ user, onClose, onNavigateToSe
                         })}
                         {isLoading && (
                             <div className="flex items-end gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center shrink-0"><WhatsAppIcon className="w-5 h-5 text-white" /></div>
+                                <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center shrink-0"><WhatsAppIcon className="w-5 h-5 text-white" /></div>
                                 <div className="max-w-xs md:max-w-md p-3 rounded-2xl bg-white dark:bg-slate-800 rounded-bl-none shadow-sm">
                                     <div className="flex items-center gap-2">
                                         <span className="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>

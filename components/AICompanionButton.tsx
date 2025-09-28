@@ -16,7 +16,7 @@ const AICompanionButton: React.FC<AICompanionButtonProps> = ({ onClick }) => {
     return (
         <button
             onClick={onClick}
-            className="fixed bottom-24 right-6 z-30 bg-gradient-to-br from-green-500 to-teal-600 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transform hover:scale-110 transition-all duration-300 animate-pulse-slow focus:outline-none focus:ring-4 focus:ring-green-400"
+            className="fixed bottom-24 right-6 z-30 bg-green-500 text-white w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transform hover:scale-110 transition-all duration-300 animate-pulse-slow focus:outline-none focus:ring-4 focus:ring-green-300"
             aria-label="@SakoonApp help से बात करें"
         >
             <WhatsAppIcon className="w-8 h-8"/>
