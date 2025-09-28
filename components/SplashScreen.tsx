@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 const SplashScreen: React.FC = () => (
@@ -12,7 +13,7 @@ const SplashScreen: React.FC = () => (
     </div>
     <div className="relative z-10 text-center">
         <h1 className="text-5xl md:text-6xl font-bold text-white animate-title-glow">SakoonApp</h1>
-        <p className="mt-8 text-lg text-cyan-200">लोड हो रहा है, कृपया प्रतीक्षा करें...</p>
+        <p className="mt-8 text-lg text-cyan-200">मन की बात, सुकून के साथ...</p>
     </div>
   </div>
 );
