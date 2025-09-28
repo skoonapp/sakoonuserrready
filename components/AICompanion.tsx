@@ -34,12 +34,12 @@ const MicrophoneIcon: React.FC<{className?: string}> = ({className}) => (
         <path d="M6 10.5a.75.75 0 01.75.75v.5a5.25 5.25 0 0010.5 0v-.5a.75.75 0 011.5 0v.5a6.75 6.75 0 01-13.5 0v-.5a.75.75 0 01.75-.75z" />
     </svg>
 );
-const RobotIcon: React.FC<{ className?: string }> = ({ className }) => (
+const SparkleIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-        <path fillRule="evenodd" d="M4.5 3.75a3 3 0 00-3 3v10.5a3 3 0 003 3h15a3 3 0 003-3V6.75a3 3 0 00-3-3h-15zm4.125 3.375a.75.75 0 000 1.5h6.75a.75.75 0 000-1.5h-6.75zm-3.375 9a.75.75 0 000 1.5h13.5a.75.75 0 000-1.5h-13.5z" clipRule="evenodd" />
-        <path d="M9.75 12.75a1.125 1.125 0 112.25 0 1.125 1.125 0 01-2.25 0zm5.625-1.125a1.125 1.125 0 100 2.25 1.125 1.125 0 000-2.25z" />
+        <path fillRule="evenodd" d="M9.315 7.584C10.021 6.46 11.494 6 13 6c1.506 0 2.979.46 3.685 1.584l.753 1.129l1.605.214C19.998 8.92 20.5 9.81 20.5 10.76c0 .736-.32 1.405-.838 1.838l-1.09 1.09l.214 1.605c.094.707-.153 1.411-.702 1.873c-.55.462-1.285.592-1.95.338l-1.492-.56L13 18.5l-1.129.753c-.664.444-1.48.314-1.95-.338c-.47-.62-.592-1.385-.338-1.95l.56-1.492l-1.09-1.09c-.518-.433-.838-1.102-.838-1.838c0-.95.502-1.84 1.234-2.176l1.605-.214l.753-1.129zM12.99 3.003c.754 0 1.499.15 2.193.433l.24.116l.248-.372c.473-.71 1.15-1.265 1.953-1.616c.802-.351 1.732-.276 2.463.208c.73.484 1.185 1.28 1.185 2.146c0 .41-.086.81-.253 1.185l-.116.24l.372.248c.71.473 1.265 1.15 1.616 1.953c.351.802.276 1.732-.208 2.463c-.484.73-1.28 1.185-2.146 1.185c-.41 0-.81-.086-1.185-.253l-.24-.116l-.248.372c-.473.71-1.15 1.265-1.953 1.616c-.802.351-1.732.276-2.463-.208c-.73-.484-1.185-1.28-1.185-2.146c0-.41.086.81.253-1.185l.116-.24l-.372-.248c-.71-.473-1.265-1.15-1.616-1.953c-.351-.802-.276-1.732.208-2.463c.484-.73 1.28-1.185 2.146-1.185z" clipRule="evenodd" />
     </svg>
 );
+
 
 const AICompanion: React.FC<AICompanionProps> = ({ user, onClose, onNavigateToServices }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -74,27 +74,30 @@ const AICompanion: React.FC<AICompanionProps> = ({ user, onClose, onNavigateToSe
             chatRef.current = ai.chats.create({
                 model: 'gemini-2.5-flash',
                 config: {
-                    systemInstruction: `You are "@SakoonApp Help", a warm, empathetic, and expert guide for the SakoonApp. Your personality is like a caring, knowledgeable friend. Your primary goal is to make the user feel comfortable, understand how the app works, and guide them to connect with a human Listener. You are a guide, not a replacement for a Listener. Converse primarily in Hinglish (Hindi using the Roman script) or Hindi (Devanagari script), matching the user's language. Use simple, everyday words that anyone can understand. Be natural and friendly. Keep it concise.
+                    systemInstruction: `You are 'Sakoon Dost', a warm, empathetic, and supportive AI companion from SakoonApp. Your personality is that of a kind, non-judgmental friend who is always there to listen. Your purpose is to provide a safe space for users to share what's on their mind and help them feel a little lighter. You are not a therapist, but a first step towards feeling heard.
 
-**Your Conversational Flow & Knowledge Base:**
-1.  **Warm Welcome & Empathy:** Always start by gently greeting the user and asking what's on their mind. Example: "नमस्ते, मैं आपका सकून दोस्त हूँ। कैसे हैं आप? आप चाहें तो मुझसे अपने मन की बात कह सकते हैं।"
-2.  **Introduce SakoonApp's Purpose:** Explain that the app is a safe place to talk to someone and feel lighter. "कभी-कभी किसी से बात कर लेने से ही मन बहुत हल्का हो जाता है। SakoonApp इसीलिए बना है ताकि आप जब चाहें, किसी से अपने मन की बात कह सकें।"
-3.  **Act as an Expert App Guide:** You know every feature:
-    *   **Home Tab:** "यहाँ से आप बात करने के लिए प्लान खरीद सकते हैं। दो तरह के प्लान हैं - DT और MT."
-    *   **Calls & Chats Tabs:** "इन टैब्स पर जाकर आप देख सकते हैं कि कौन-कौन से Listeners अभी बात करने के लिए ऑनलाइन हैं।"
-    *   **Profile Tab:** "यहाँ आप अपनी प्रोफाइल देख सकते हैं, ऐप को इंस्टॉल कर सकते हैं, और हमारी नीतियां (policies) पढ़ सकते हैं।"
-4.  **Understand Plans & Tokens (Very Important):** Explain this simply.
-    *   **DT (Direct Time) Plans:** "ये खास पैक होते हैं जिनमें आपको कॉल के लिए फिक्स मिनट या चैट के लिए फिक्स मैसेज मिलते हैं। **सबसे अच्छी बात यह है कि अगर आपके पास DT प्लान है, तो ऐप हमेशा पहले उसी का इस्तेमाल करेगा।** इससे आपके पैसे बचते हैं। **बहुत ज़रूरी बात: चैट प्लान में 'duration' (जैसे 5 मिनट) सिर्फ एक नाम है, असल में आपको उसमें लिखे हुए 'messages' (जैसे 8 मैसेज) मिलते हैं, मिनट नहीं।**"
-    *   **MT (Money Tokens):** "ये आपके वॉलेट बैलेंस की तरह हैं। MT का इस्तेमाल तभी होता है जब आपके पास कोई DT प्लान न हो। इनका रेट है: **कॉल के लिए 2 MT प्रति मिनट** और **चैट के लिए 1 MT में 2 मैसेज**।"
+**Your Conversational Flow:**
+
+1.  **Gentle Opening:** Always start by warmly greeting the user and asking how they are or what's on their mind. Examples: "नमस्ते, मैं आपका सकून दोस्त हूँ। आज आप कैसा महसूस कर रहे हैं?" or "आप यहाँ अपने मन की कोई भी बात मुझसे कह सकते हैं।"
+
+2.  **Empathetic Listening:** Listen to what the user says. Acknowledge their feelings with empathy. Ask gentle, open-ended follow-up questions to help them explore their thoughts. Examples: "यह सुनने में वाकई मुश्किल लग रहा है। क्या आप इस बारे में और कुछ बताना चाहेंगे?" or "ऐसा महसूस करना बहुत स्वाभाविक है।"
+
+3.  **The Goal: Guiding to a Human Listener:** Your ultimate goal is to encourage the user to connect with a real human Listener on the app, especially if they express feelings of sadness, loneliness, stress, anxiety, or depression. You are the bridge to a human connection.
+    *   **Trigger:** User expresses significant emotional distress.
+    *   **Your Empathetic Guidance:** "अपनी भावनाओं को इस तरह साझा करना बहुत हिम्मत का काम है। कभी-कभी किसी इंसान से इस बारे में बात करने से बहुत मदद मिलती है। हमारे Listeners आपकी बात सुनने और समझने के लिए ही यहाँ हैं। क्या आप चाहेंगे कि मैं आपको Listeners के पेज पर ले चलूँ?"
+    *   **Action:** If they agree, you MUST use the 'navigateToServices' function.
+
+4.  **App Guide (Secondary Role):** If the user asks a direct question about the app (like "how to buy a plan?" or "what is MT?"), answer it clearly and simply based on this knowledge:
+    *   **Plans:** Users can buy plans from the 'Home' tab. There are DT (Direct Time/Message packs) and MT (Money Tokens). DT plans are always used first.
+    *   **Listeners:** Users can see online Listeners in the 'Calls' and 'Chats' tabs.
+    *   **MT costs:** 2 MT/minute for calls, 1 MT for 2 messages in chat.
     *   Here are all the available plans for your reference: ${allPlansInfo}
-5.  **Proactively Guide and Encourage:** Your main job is to help users connect with a human. If a user mentions feeling sad, lonely, depressed, or says they want to talk to a "listener" or a "girl" ("ladki"), your response should be empathetic and guide them to the services page.
-    *   **Example Trigger:** User says "मन उदास है" or "किसी लड़की से बात करनी है".
-    *   **Your Empathetic Response & Guidance:** "यह सुनने में बहुत कठिन लग रहा है। हमारे एक Listener से इस बारे में बात करना शायद आपके लिए मददगार हो सकता है। वो आपकी बात समझेंगे। क्या आप चाहेंगे कि मैं आपको Listeners के पेज पर ले चलूँ?"
-    *   **Action:** If they agree or seem interested, you MUST use the 'navigateToServices' function.
 
-**Tools:**
-You have one tool available:
-- \`navigateToServices()\`: Use this function ONLY when you have determined the user wants to connect with a human listener.`,
+**Your Tone:**
+- Always be supportive, gentle, and positive.
+- Use simple Hinglish or Hindi, matching the user's language.
+- Keep responses concise and easy to understand.
+- Never give advice, opinions, or medical guidance. Your role is to listen and guide them to a human.`,
                     tools: [{
                         functionDeclarations: [{
                             name: 'navigateToServices',
@@ -106,8 +109,8 @@ You have one tool available:
             
             setMessages([{
                 id: `ai-welcome-${Date.now()}`,
-                text: `नमस्ते ${user.name}, मैं @SakoonApp Help हूँ। मैं इस ऐप को समझने में आपकी मदद कर सकता हूँ। आप क्या जानना चाहेंगे?`,
-                sender: { uid: 'ai', name: '@SakoonApp Help' },
+                text: `नमस्ते ${user.name}, मैं आपका AI Companion हूँ। आप यहाँ अपने मन की कोई भी बात मुझसे कह सकते हैं।`,
+                sender: { uid: 'ai', name: 'AI Companion' },
                 timestamp: Date.now()
             }]);
 
@@ -133,13 +136,14 @@ You have one tool available:
         try {
             const result = await chatRef.current.sendMessage({ message: text });
             
-            const functionCalls = result.candidates?.[0]?.content?.parts.filter(part => !!part.functionCall);
-            if (functionCalls && functionCalls.length > 0 && functionCalls[0].functionCall?.name === 'navigateToServices') {
+            // FIX: Use the recommended `functionCalls` accessor on the response object
+            // for simpler and more robust handling of function calls from the model.
+            if (result.functionCalls?.some(fc => fc.name === 'navigateToServices')) {
                 onNavigateToServices();
             }
             
             if (result.text) {
-                const aiMessage: ChatMessage = { id: `ai-${Date.now()}`, text: result.text, sender: { uid: 'ai', name: '@SakoonApp Help' }, timestamp: Date.now() };
+                const aiMessage: ChatMessage = { id: `ai-${Date.now()}`, text: result.text, sender: { uid: 'ai', name: 'AI Companion' }, timestamp: Date.now() };
                 setMessages(prev => [
                     ...prev.map(msg => msg.id === userMessageId ? { ...msg, status: 'read' } as ChatMessage : msg),
                     aiMessage
@@ -168,12 +172,12 @@ You have one tool available:
             >
                 <header className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 shadow-sm flex-shrink-0 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center gap-3">
-                        <div className="bg-gradient-to-br from-cyan-500 to-teal-400 p-2 rounded-full">
-                            <RobotIcon className="w-6 h-6 text-white" />
+                        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-2 rounded-full">
+                            <SparkleIcon className="w-6 h-6 text-white" />
                         </div>
                         <div>
-                            <h2 className="font-bold text-lg text-slate-800 dark:text-slate-100">@SakoonApp Help</h2>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">आपका सहायक गाइड</p>
+                            <h2 className="font-bold text-lg text-slate-800 dark:text-slate-100">AI Companion</h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">मन की बात, सुकून के साथ...</p>
                         </div>
                     </div>
                     <button 
@@ -192,8 +196,8 @@ You have one tool available:
                             return (
                                 <div key={msg.id} className={`flex items-end gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
                                     {isAI && (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shrink-0 self-start">
-                                            <RobotIcon className="w-5 h-5 text-white" />
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0 self-start">
+                                            <SparkleIcon className="w-5 h-5 text-white" />
                                         </div>
                                     )}
                                     <div className={`max-w-xs md:max-w-md p-2.5 rounded-xl flex flex-col ${isAI ? 'bg-white dark:bg-slate-800 rounded-bl-none shadow-sm' : 'bg-[#dcf8c6] dark:bg-cyan-900 text-slate-800 dark:text-slate-100 rounded-tr-none'}`}>
@@ -208,7 +212,7 @@ You have one tool available:
                         })}
                         {isLoading && (
                             <div className="flex items-end gap-2">
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-teal-400 flex items-center justify-center shrink-0"><RobotIcon className="w-5 h-5 text-white" /></div>
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shrink-0"><SparkleIcon className="w-5 h-5 text-white" /></div>
                                 <div className="max-w-xs md:max-w-md p-3 rounded-2xl bg-white dark:bg-slate-800 rounded-bl-none shadow-sm">
                                     <div className="flex items-center gap-2">
                                         <span className="h-2 w-2 bg-slate-400 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
@@ -230,7 +234,7 @@ You have one tool available:
                             rows={1}
                             value={inputValue}
                             onChange={(e) => setInputValue(e.target.value)}
-                            placeholder="@SakoonApp Help से पूछें..."
+                            placeholder="AI Companion से पूछें..."
                             className="flex-grow bg-transparent focus:outline-none text-slate-900 dark:text-white resize-none max-h-24 overflow-y-auto px-3 py-1.5"
                             disabled={isLoading}
                             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e); } }}

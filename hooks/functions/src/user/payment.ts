@@ -4,13 +4,13 @@ import * as admin from "firebase-admin";
 // FIX: Using a default import for the express app and specific type imports to resolve conflicts with firebase-functions types.
 import express from "express";
 // FIX: Aliased express types to prevent conflicts with global types from firebase-functions.
-import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from "express";
+import type { NextFunction } from "express";
 import * as crypto from "crypto";
 import { Buffer } from "buffer";
 import { Cashfree } from "cashfree-pg";
 // FIX: Use an ES module import for 'axios' instead of 'require' to resolve the type error and maintain code consistency.
 import axios from "axios";
-import { initializeCashfree, CASHFREE_WEBHOOK_SECRET, db } from "../config";
+import { initializeCashfree, getCashfreeWebhookSecret, db } from "../config";
 import { setCORSHeaders } from "../common/cors";
 
 
@@ -240,7 +240,7 @@ webhookApp.post("/", express.json({
     }
 
     const expectedSignature = crypto
-      .createHmac("sha256", CASHFREE_WEBHOOK_SECRET)
+      .createHmac("sha256", getCashfreeWebhookSecret())
       .update(timestamp + payloadBuffer.toString())
       .digest("base64");
 

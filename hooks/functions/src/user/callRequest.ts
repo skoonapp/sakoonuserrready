@@ -2,7 +2,12 @@
 import * as functions from "firebase-functions/v1";
 // FIX: Use modern environment variables from the updated config file.
 import { ZEGO_APP_ID, ZEGO_SERVER_SECRET } from "../config";
-import { RtcTokenBuilder, RtcRole } from "zego-express-engine-serverless";
+
+// FIX: Replaced the ES module import with a standard CommonJS `require` statement.
+// This is a final attempt to resolve the persistent "Cannot find module" error,
+// bypassing TypeScript's module resolution for this specific problematic package.
+// This approach is the most direct way to load a CommonJS module in a Node.js environment.
+const Zego = require("zego-express-engine-serverless");
 
 /**
  * Converts a string to a 32-bit integer. This is necessary because Zego's
@@ -25,6 +30,13 @@ function stringToInteger(str: string): number {
 
 
 export const generateZegoToken = functions.region("asia-south1").https.onCall(async (data, context) => {
+    // Add a guard clause to fail fast if Zego config is missing.
+    // This provides a clearer error to the client than the downstream SDK errors.
+    if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET) {
+        functions.logger.error("Zego App ID or Server Secret is not configured in environment variables.");
+        throw new functions.https.HttpsError("failed-precondition", "The calling service is not configured correctly on the server. Please contact support.");
+    }
+
     if (!context.auth) {
         throw new functions.https.HttpsError("unauthenticated", "You must be logged in.");
     }
@@ -46,12 +58,12 @@ export const generateZegoToken = functions.region("asia-south1").https.onCall(as
     const numericUserId = stringToInteger(userId);
 
     try {
-        const token = RtcTokenBuilder.buildTokenWithUid(
+        const token = Zego.RtcTokenBuilder.buildTokenWithUid(
             ZEGO_APP_ID,
             ZEGO_SERVER_SECRET,
             planId,
             numericUserId, // Use the converted numeric ID
-            RtcRole.PUBLISHER,
+            Zego.RtcRole.PUBLISHER,
             expirationTimestamp, // Pass the correct expiration timestamp
             payload
         );
