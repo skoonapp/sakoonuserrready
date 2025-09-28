@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import type { CallSession, User } from '../types';
+import type { CallSession, User, Listener } from '../types';
 import { fetchZegoToken } from '../utils/zego.ts';
 import { LISTENER_IMAGES } from '../constants';
 
@@ -12,7 +12,7 @@ declare global {
 interface CallUIProps {
   session: CallSession;
   user: User;
-  onLeave: (success: boolean, consumedSeconds: number) => void;
+  onLeave: (success: boolean, consumedSeconds: number, listener: Listener) => void;
 }
 
 // --- SVG Icons ---
@@ -75,8 +75,8 @@ const CallUI: React.FC<CallUIProps> = ({ session, user, onLeave }) => {
     
     const startTime = sessionStartTimeRef.current;
     const consumedSeconds = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
-    onLeaveRef.current(isSuccess, consumedSeconds);
-  }, []);
+    onLeaveRef.current(isSuccess, consumedSeconds, session.listener);
+  }, [session.listener]);
 
   const endCall = useCallback(() => {
     if (zpInstanceRef.current) {

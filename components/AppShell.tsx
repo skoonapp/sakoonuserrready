@@ -27,6 +27,8 @@ const AICompanion = lazy(() => import('./AICompanion'));
 const TermsAndConditions = lazy(() => import('./TermsAndConditions'));
 const PrivacyPolicy = lazy(() => import('./PrivacyPolicy'));
 const CancellationRefundPolicy = lazy(() => import('./CancellationRefundPolicy'));
+const RatingModal = lazy(() => import('./RatingModal'));
+
 
 // --- Icons for Install Banner & Notifications ---
 const InstallIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -60,6 +62,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const [showPolicy, setShowPolicy] = useState<'terms' | 'privacy' | 'cancellation' | null>(null);
     const [showRechargeModal, setShowRechargeModal] = useState(false);
     const [rechargeContextListener, setRechargeContextListener] = useState<Listener | null>(null);
+    const [sessionToRate, setSessionToRate] = useState<Listener | null>(null);
 
 
     // --- Centralized Payment State ---
@@ -316,7 +319,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         }
     }, [user, showNotification]);
     
-    const handleCallSessionEnd = useCallback(async (success: boolean, consumedSeconds: number) => {
+    const handleCallSessionEnd = useCallback(async (success: boolean, consumedSeconds: number, listener: Listener) => {
         if (user && activeCallSession) {
             if (success && consumedSeconds > 5) {
                 try {
@@ -327,6 +330,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         isTokenSession: activeCallSession.isTokenSession,
                         listenerName: activeCallSession.listener.name
                     });
+                    setSessionToRate(listener);
                 } catch (error) {
                     console.error("Error finalizing call session:", error);
                 }
@@ -335,7 +339,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
         setActiveCallSession(null);
     }, [user, activeCallSession]);
 
-    const handleChatSessionEnd = useCallback(async (success: boolean, consumedMessages: number) => {
+    const handleChatSessionEnd = useCallback(async (success: boolean, consumedMessages: number, listener: Listener) => {
         if (user && activeChatSession) {
             if (success && consumedMessages > 0 && !activeChatSession.isFreeTrial) {
                 try {
@@ -346,6 +350,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                         isTokenSession: activeChatSession.isTokenSession,
                         listenerName: activeChatSession.listener.name
                     });
+                    setSessionToRate(listener);
                 } catch(error) {
                     console.error("Error finalizing chat session:", error);
                 }
@@ -614,6 +619,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                 {showPolicy === 'terms' && <TermsAndConditions onClose={() => setShowPolicy(null)} />}
                 {showPolicy === 'privacy' && <PrivacyPolicy onClose={() => setShowPolicy(null)} />}
                 {showPolicy === 'cancellation' && <CancellationRefundPolicy onClose={() => setShowPolicy(null)} />}
+                {sessionToRate && <RatingModal listener={sessionToRate} onClose={() => setSessionToRate(null)} />}
             </Suspense>
 
             {showRechargeModal && (

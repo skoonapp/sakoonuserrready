@@ -12,7 +12,7 @@ declare global {
 interface ChatUIProps {
   session: ChatSession;
   user: User;
-  onLeave: (success: boolean, consumedMessages: number) => void;
+  onLeave: (success: boolean, consumedMessages: number, listener: Listener) => void;
   onStartCall: (listener: Listener) => void;
 }
 
@@ -95,8 +95,8 @@ const ChatUI: React.FC<ChatUIProps> = ({ session, user, onLeave, onStartCall }) 
     if (hasLeftRef.current) return;
     hasLeftRef.current = true;
     setStatus('ended');
-    onLeave(isSuccess, sentMessagesCount);
-  }, [onLeave, sentMessagesCount]);
+    onLeave(isSuccess, sentMessagesCount, session.listener);
+  }, [onLeave, sentMessagesCount, session.listener]);
 
   useEffect(() => {
     window.history.pushState(null, '');

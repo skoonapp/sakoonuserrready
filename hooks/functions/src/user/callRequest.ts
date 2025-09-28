@@ -94,32 +94,46 @@ export const generateZegoToken = functions
   .region('asia-south1')
   .https
   .onCall(async (data, context) => {
+    // Authentication check
     if (!context.auth) {
       throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
 
     const userId = context.auth.uid;
-    // FIX: The backend now expects 'roomId' from the client to match the error log and standard practice.
+    
+    // Extract roomId from request data
     const { roomId } = data;
 
-    // FIX: Added robust validation for the roomId to ensure it's a non-empty string.
+    // FIXED: Correct error message for roomId validation
     if (!roomId || typeof roomId !== 'string' || roomId.trim().length === 0) {
-      throw new functions.https.HttpsError('invalid-argument', 'roomId is required and must be a string');
+      functions.logger.error('Invalid roomId provided:', { roomId, type: typeof roomId });
+      throw new functions.https.HttpsError('invalid-argument', 'roomId is required and must be a non-empty string');
     }
 
+    // Additional userId validation (defensive programming)
+    if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+      functions.logger.error('Invalid userId from authentication:', { userId, type: typeof userId });
+      throw new functions.https.HttpsError('invalid-argument', 'User authentication is invalid');
+    }
+
+    // Environment configuration check
     if (!ZEGO_APP_ID || !ZEGO_SERVER_SECRET) {
       functions.logger.error('Zego App ID or Server Secret is not configured.');
       throw new functions.https.HttpsError('failed-precondition', 'The server is not configured for calling services.');
     }
     
     if (typeof ZEGO_SERVER_SECRET !== 'string' || ZEGO_SERVER_SECRET.length !== 32) {
-        functions.logger.error(`Invalid Zego Server Secret length. Expected 32, got ${ZEGO_SERVER_SECRET.length}.`);
+        functions.logger.error(`Invalid Zego Server Secret length. Expected 32, got ${ZEGO_SERVER_SECRET ? ZEGO_SERVER_SECRET.length : 'undefined'}.`);
         throw new functions.https.HttpsError('failed-precondition', 'Server configuration for calling services is invalid.');
     }
 
     try {
-      // FIX: Pass the validated roomId to the token generation function.
+      // Log the attempt for debugging
+      functions.logger.info('Generating Zego token:', { userId, roomId });
+      
+      // Generate the token
       const token = generateKitToken(ZEGO_APP_ID, ZEGO_SERVER_SECRET, userId, roomId);
+      
       functions.logger.info(`Successfully generated Zego token for user: ${userId} for room: ${roomId}`);
       return { token };
     } catch (error: any) {
