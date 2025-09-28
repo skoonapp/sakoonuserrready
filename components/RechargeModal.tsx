@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Listener } from '../types';
 
 // --- Icons for the banner ---
 const WarningIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -9,36 +10,48 @@ const WarningIcon: React.FC<{ className?: string }> = ({ className }) => (
 // --- End Icons ---
 
 interface RechargeModalProps {
+  listener: Listener | null;
   onClose: () => void;
   onNavigateHome: () => void;
 }
 
-const RechargeModal: React.FC<RechargeModalProps> = ({ onClose, onNavigateHome }) => {
+const RechargeModal: React.FC<RechargeModalProps> = ({ listener, onClose, onNavigateHome }) => {
   return (
-    // Added a semi-transparent backdrop and an onClick handler to close the modal.
     <div 
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-fade-in"
       onClick={onClose}
     >
-        {/* The banner itself stops click propagation to prevent closing when clicked. */}
         <div 
-          className="w-full max-w-md bg-gradient-to-r from-amber-50 to-orange-100 dark:from-amber-900/50 dark:to-orange-950/50 rounded-2xl shadow-2xl p-4 flex items-center gap-4 border-2 border-amber-300 dark:border-amber-700"
+          className="w-full max-w-sm bg-white dark:bg-slate-900 rounded-2xl shadow-2xl p-6 text-center animate-fade-in-up"
           onClick={(e) => e.stopPropagation()}
         >
-            <div className="flex-shrink-0">
-                <WarningIcon className="w-8 h-8 text-amber-600 dark:text-amber-400" />
-            </div>
-            <div className="flex-grow text-left min-w-0">
-                <h3 className="font-bold text-amber-800 dark:text-amber-200 text-base">अपर्याप्त बैलेंस</h3>
-                <p className="text-sm text-amber-700 dark:text-amber-300 whitespace-normal">
-                    कॉल करने के लिए आपके पास कोई DT या MT प्लान नहीं है।
-                </p>
-            </div>
-            <div className="flex-shrink-0">
-                {/* The "बाद में" button has been removed. */}
+            {listener ? (
+                <>
+                    <img src={listener.image} alt={listener.name} className="w-24 h-24 rounded-full object-cover mx-auto border-4 border-white dark:border-slate-800 shadow-lg -mt-16" />
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 mt-4">
+                        {listener.name} से बात करें?
+                    </h3>
+                </>
+            ) : (
+                <div className="w-20 h-20 mx-auto bg-gradient-to-br from-amber-400 to-orange-500 rounded-full flex items-center justify-center border-4 border-white dark:border-slate-800 shadow-lg -mt-16">
+                    <WarningIcon className="w-10 h-10 text-white" />
+                </div>
+            )}
+            
+            <p className="text-slate-600 dark:text-slate-400 mt-2 mb-6">
+                कॉल या चैट करने के लिए आपके पास पर्याप्त बैलेंस नहीं है। कृपया पहले रिचार्ज करें।
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-3">
+                <button 
+                    onClick={onClose} 
+                    className="w-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold py-3 px-4 rounded-lg hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                >
+                    बाद में
+                </button>
                 <button 
                     onClick={onNavigateHome} 
-                    className="bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg text-sm hover:bg-cyan-700 transition-colors shadow whitespace-nowrap"
+                    className="w-full bg-cyan-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-cyan-700 transition-colors shadow-lg"
                 >
                     रिचार्ज करें
                 </button>

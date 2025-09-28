@@ -59,6 +59,8 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
     const [showAICompanion, setShowAICompanion] = useState(false);
     const [showPolicy, setShowPolicy] = useState<'terms' | 'privacy' | 'cancellation' | null>(null);
     const [showRechargeModal, setShowRechargeModal] = useState(false);
+    const [rechargeContextListener, setRechargeContextListener] = useState<Listener | null>(null);
+
 
     // --- Centralized Payment State ---
     const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -263,6 +265,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                     const session = { listener, plan: { duration: 'MT', price: 0 }, associatedPlanId: `mt_session_${Date.now()}`, isTokenSession: true };
                     setActiveChatSession({ ...session, type: 'chat', sessionDurationSeconds: 3 * 3600 });
                 } else {
+                    setRechargeContextListener(listener);
                     setShowRechargeModal(true);
                 }
             }
@@ -306,6 +309,7 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
                     const durationSeconds = maxMinutes * 60;
                     setActiveCallSession({ ...session, type: 'call', sessionDurationSeconds: durationSeconds });
                 } else {
+                    setRechargeContextListener(listener);
                     setShowRechargeModal(true);
                 }
             }
@@ -613,7 +617,18 @@ const AppShell: React.FC<AppShellProps> = ({ user }) => {
             </Suspense>
 
             {showRechargeModal && (
-                <RechargeModal onClose={() => setShowRechargeModal(false)} onNavigateHome={() => { navigateTo(0); setShowRechargeModal(false); }} />
+                <RechargeModal 
+                    listener={rechargeContextListener}
+                    onClose={() => {
+                        setShowRechargeModal(false);
+                        setRechargeContextListener(null);
+                    }} 
+                    onNavigateHome={() => { 
+                        navigateTo(0); 
+                        setShowRechargeModal(false);
+                        setRechargeContextListener(null);
+                    }} 
+                />
             )}
             
             {paymentSessionId && <CashfreeModal paymentSessionId={paymentSessionId} onClose={handleModalClose} />}
